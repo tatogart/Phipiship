@@ -475,6 +475,7 @@ $('#fontBold').addEventListener('change', (e) => (state.fontBold = e.target.chec
 
 function setPrimary(c) {
   state.primary = c;
+  brushCursor.style.setProperty('--brush-color', c);
   $('#primarySwatch').style.background = c;
   $('#primaryInput').value = c;
 }
@@ -531,7 +532,59 @@ function setupStrokeCtx(ctx) {
   ctx.fillStyle = state.primary;
 }
 
+/* Два пальца — масштаб и прокрутка (телефоны и планшеты). */
+const touches = new Map();
+
+function startPinch() {
+  if (drag) {
+    if (drag.type === 'paint') {
+      history.undo.pop();
+      updateHistoryButtons();
+    } else if (drag.type === 'move') {
+      const L = activeLayer();
+      L.dx = L.dy = 0;
+      history.undo.pop();
+      updateHistoryButtons();
+    } else if (drag.type === 'crop') {
+      cancelCrop();
+    }
+    stroke.preview = false;
+    tctx.clearRect(0, 0, state.w, state.h);
+    render();
+  }
+  const [a, b] = [...touches.values()];
+  drag = {
+    type: 'pinch',
+    dist: Math.hypot(a.x - b.x, a.y - b.y) || 1,
+    mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 },
+    zoom: state.zoom, panX: state.panX, panY: state.panY,
+  };
+}
+
+function updatePinch() {
+  const [a, b] = [...touches.values()];
+  const r = viewport.getBoundingClientRect();
+  const dist = Math.hypot(a.x - b.x, a.y - b.y) || 1;
+  const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+  const nz = clamp((drag.zoom * dist) / drag.dist, 0.05, 32);
+  const m0x = drag.mid.x - r.left, m0y = drag.mid.y - r.top;
+  state.panX = mid.x - r.left - ((m0x - drag.panX) * nz) / drag.zoom;
+  state.panY = mid.y - r.top - ((m0y - drag.panY) * nz) / drag.zoom;
+  state.zoom = nz;
+  applyTransform();
+  if (crop) render();
+}
+
 viewport.addEventListener('pointerdown', (e) => {
+  if (e.pointerType === 'touch') {
+    touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (touches.size === 2) {
+      viewport.setPointerCapture(e.pointerId);
+      startPinch();
+      return;
+    }
+    if (touches.size > 2) return;
+  }
   if (drag) return;
   const tool = spaceDown ? 'hand' : state.tool;
 
@@ -607,8 +660,14 @@ viewport.addEventListener('pointermove', (e) => {
   const inside = p.x >= 0 && p.y >= 0 && p.x < state.w && p.y < state.h;
   $('#statusCoords').textContent = inside ? `X: ${Math.floor(p.x)}  Y: ${Math.floor(p.y)}` : '—';
 
+  if (touches.has(e.pointerId)) touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (drag && drag.type === 'pinch') {
+    if (touches.size >= 2) updatePinch();
+    return;
+  }
+
   const tool = spaceDown ? 'hand' : state.tool;
-  if (tool === 'brush' || tool === 'eraser') {
+  if ((tool === 'brush' || tool === 'eraser') && e.pointerType !== 'touch') {
     const r = viewport.getBoundingClientRect();
     brushCursor.style.display = 'block';
     brushCursor.style.left = e.clientX - r.left + 'px';
@@ -698,8 +757,17 @@ function endDrag() {
   updateCursor();
 }
 
-viewport.addEventListener('pointerup', endDrag);
-viewport.addEventListener('pointercancel', endDrag);
+function onPointerEnd(e) {
+  touches.delete(e.pointerId);
+  if (drag && drag.type === 'pinch') {
+    if (touches.size < 2) drag = null;
+    return;
+  }
+  endDrag();
+}
+
+viewport.addEventListener('pointerup', onPointerEnd);
+viewport.addEventListener('pointercancel', onPointerEnd);
 
 function commitTemp() {
   const L = activeLayer();
@@ -860,7 +928,7 @@ function applyCrop() {
   crop = null;
   pushHistory();
   transformDocument(w, h, (ctx, L) => ctx.drawImage(L.canvas, -x, -y));
-  status(`Кадрировано до ${w} × ${h}`);
+  status(`✂ Кадрировано до ${w} × ${h}`);
 }
 
 $('#cropApply').onclick = applyCrop;
@@ -1265,7 +1333,7 @@ const actions = {
   savePng() {
     composite().toBlob((b) => download(b, 'phipiship.png'), 'image/png');
     state.dirty = false;
-    status('Сохранено: phipiship.png');
+    status('⚓ Сохранено в гавани: phipiship.png');
   },
   saveJpg() {
     openModal({
@@ -1521,23 +1589,41 @@ function runAction(name) {
 
 /* ---------------- Меню ---------------- */
 
+/** Выпадающее меню позиционируется fixed, чтобы не обрезаться прокручиваемой строкой меню. */
+function openMenu(menu) {
+  const r = menu.querySelector('.menu-title').getBoundingClientRect();
+  const dd = menu.dropdown;
+  menu.classList.add('open');
+  dd.classList.add('show');
+  dd.style.top = r.bottom + 6 + 'px';
+  dd.style.left = Math.max(8, Math.min(r.left, window.innerWidth - dd.offsetWidth - 8)) + 'px';
+}
+
+function closeMenus() {
+  $$('.menu.open').forEach((m) => m.classList.remove('open'));
+  $$('.dropdown.show').forEach((d) => d.classList.remove('show'));
+}
+
 for (const menu of $$('.menu')) {
+  // Выносим в body: backdrop-filter у строки меню ломает position: fixed.
+  menu.dropdown = menu.querySelector('.dropdown');
+  document.body.appendChild(menu.dropdown);
   menu.querySelector('.menu-title').addEventListener('click', (e) => {
     e.stopPropagation();
     const wasOpen = menu.classList.contains('open');
-    $$('.menu.open').forEach((m) => m.classList.remove('open'));
-    if (!wasOpen) menu.classList.add('open');
+    closeMenus();
+    if (!wasOpen) openMenu(menu);
   });
   menu.addEventListener('mouseenter', () => {
     if ($('.menu.open') && !menu.classList.contains('open')) {
-      $$('.menu.open').forEach((m) => m.classList.remove('open'));
-      menu.classList.add('open');
+      closeMenus();
+      openMenu(menu);
     }
   });
 }
 document.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-action]');
-  $$('.menu.open').forEach((m) => m.classList.remove('open'));
+  closeMenus();
   if (btn) runAction(btn.dataset.action);
 });
 
@@ -1633,7 +1719,7 @@ window.addEventListener('keydown', (e) => {
     return;
   }
   if (e.key === 'Enter' && crop) { applyCrop(); return; }
-  if (e.key === 'Escape') { cancelCrop(); $$('.menu.open').forEach((m) => m.classList.remove('open')); return; }
+  if (e.key === 'Escape') { cancelCrop(); closeMenus(); return; }
   if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); runAction('clearLayer'); return; }
   if (e.key === '[') { setSize(clamp(state.size - Math.max(1, Math.round(state.size * 0.15)), 1, 200)); return; }
   if (e.key === ']') { setSize(clamp(state.size + Math.max(1, Math.round(state.size * 0.15)), 1, 200)); return; }
@@ -1668,6 +1754,67 @@ window.addEventListener('keyup', (e) => {
 });
 
 /* ---------------- Старт ---------------- */
+
+/* ---------------- Темы ---------------- */
+
+function setTheme(name) {
+  document.documentElement.dataset.theme = name;
+  for (const b of $$('[data-theme-pick]')) b.classList.toggle('active', b.dataset.themePick === name);
+  try { localStorage.setItem('phipiship-theme', name); } catch (_) { /* приватный режим */ }
+}
+for (const b of $$('[data-theme-pick]')) b.addEventListener('click', () => setTheme(b.dataset.themePick));
+let savedTheme = 'ocean';
+try { savedTheme = localStorage.getItem('phipiship-theme') || 'ocean'; } catch (_) { /* приватный режим */ }
+setTheme(savedTheme);
+
+/* ---------------- Подсказки-флажки у инструментов ---------------- */
+
+let tipEl = null;
+for (const b of $$('.toolbar [data-tool]')) {
+  const m = b.title.match(/^(.*?)\s*\((.*)\)$/);
+  b.dataset.tipName = m ? m[1] : b.title;
+  b.dataset.tipKey = m ? m[2] : '';
+  b.setAttribute('aria-label', b.title);
+  b.removeAttribute('title');
+  b.addEventListener('mouseenter', () => {
+    const r = b.getBoundingClientRect();
+    tipEl = document.createElement('div');
+    tipEl.className = 'tip';
+    tipEl.textContent = b.dataset.tipName;
+    if (b.dataset.tipKey) {
+      const k = document.createElement('kbd');
+      k.textContent = b.dataset.tipKey;
+      tipEl.appendChild(k);
+    }
+    tipEl.style.left = r.right + 10 + 'px';
+    tipEl.style.top = r.top + r.height / 2 + 'px';
+    document.body.appendChild(tipEl);
+  });
+  b.addEventListener('mouseleave', () => { if (tipEl) tipEl.remove(); tipEl = null; });
+}
+
+/* ---------------- Панель слоёв на телефоне ---------------- */
+
+$('#panelToggle').addEventListener('click', (e) => {
+  e.stopPropagation();
+  document.body.classList.toggle('panel-open');
+});
+
+/* ---------------- Заставка ---------------- */
+
+const splash = $('#splash');
+let splashSeen = false;
+try { splashSeen = sessionStorage.getItem('phipiship-splash') === '1'; } catch (_) { /* приватный режим */ }
+const hideSplash = () => {
+  splash.classList.add('gone');
+  setTimeout(() => splash.remove(), 600);
+  try { sessionStorage.setItem('phipiship-splash', '1'); } catch (_) { /* приватный режим */ }
+};
+if (splashSeen) splash.remove();
+else {
+  splash.addEventListener('click', hideSplash);
+  setTimeout(hideSplash, 1300);
+}
 
 setPrimary(state.primary);
 setSecondary(state.secondary);
