@@ -57,6 +57,7 @@ const state = {
   gradMode: 'two',
   zoom: 1, panX: 0, panY: 0,
   dirty: false,
+  docName: 'phipiship',
 };
 
 let nextLayerId = 1;
@@ -1642,10 +1643,11 @@ const actions = {
   },
   open() { $('#fileOpen').click(); },
   place() { $('#filePlace').click(); },
+  saveProject,
   savePng() {
-    composite().toBlob((b) => download(b, 'phipiship.png'), 'image/png');
-    state.dirty = false;
-    status('⚓ Сохранено в гавани: phipiship.png');
+    const name = state.docName + '.png';
+    composite().toBlob((b) => download(b, name), 'image/png');
+    status('🖼 Экспортировано: ' + name + ' (слои сведены)');
   },
   saveJpg() {
     openModal({
@@ -1653,8 +1655,7 @@ const actions = {
       fields: [{ key: 'q', label: 'Качество', type: 'range', min: 10, max: 100, value: 90 }],
       okText: 'Сохранить',
       onOk: ({ q }) => {
-        composite(state.secondary).toBlob((b) => download(b, 'phipiship.jpg'), 'image/jpeg', q / 100);
-        state.dirty = false;
+        composite(state.secondary).toBlob((b) => download(b, state.docName + '.jpg'), 'image/jpeg', q / 100);
         status('Прозрачные области залиты фоновым цветом.');
       },
     });
@@ -1917,7 +1918,7 @@ const actions = {
       ['M / R', 'Выделение / Градиент'], ['Ctrl+A / Ctrl+D', 'Выделить всё / Снять выделение'],
       ['Ctrl+Shift+I', 'Инвертировать выделение'], ['Ctrl+C / Ctrl+X', 'Копировать / Вырезать выделение'],
       ['Del', 'Очистить выделение (или слой)'],
-      ['Ctrl+S', 'Сохранить PNG'], ['Ctrl+V', 'Вставить новым слоем'], ['Колесо мыши', 'Масштаб'],
+      ['Ctrl+S', 'Сохранить проект .photik (со слоями)'], ['Ctrl+Shift+S', 'Экспорт PNG'], ['Ctrl+V', 'Вставить новым слоем'], ['Колесо мыши', 'Масштаб'],
     ];
     openModal({
       title: 'Горячие клавиши',
@@ -1989,13 +1990,99 @@ function confirmDiscard() {
   return !state.dirty || confirm('Несохранённые изменения будут потеряны. Продолжить?');
 }
 
+/* ---------------- Проект .photik ----------------
+   JSON: { format: "photik", version, app, width, height, active,
+           layers: [{ name, visible, opacity, blend, png: "data:image/png;base64,…" }] }
+   Слои снизу вверх, пиксели каждого слоя — PNG без потерь. */
+
+const PHOTIK_VERSION = 1;
+const BLEND_MODES = new Set([...$('#blendMode').options].map((o) => o.value));
+const isPhotik = (file) => /\.photik$/i.test(file.name);
+const baseName = (file) => file.name.replace(/\.[^.]+$/, '');
+
+function saveProject() {
+  const doc = {
+    format: 'photik',
+    version: PHOTIK_VERSION,
+    app: 'PhipiShip',
+    width: state.w,
+    height: state.h,
+    active: state.active,
+    layers: state.layers.map((L) => ({
+      name: L.name,
+      visible: L.visible,
+      opacity: L.opacity,
+      blend: L.blend,
+      png: L.canvas.toDataURL('image/png'),
+    })),
+  };
+  // octet-stream, чтобы браузер не дописал к имени «.json»
+  const name = state.docName + '.photik';
+  download(new Blob([JSON.stringify(doc)], { type: 'application/octet-stream' }), name);
+  state.dirty = false;
+  status(`⚓ Проект сохранён в гавани: ${name} (${state.layers.length} сл.)`);
+}
+
+function loadDataUrl(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Повреждённый слой в файле .photik'));
+    img.src = src;
+  });
+}
+
+async function openProject(file) {
+  let doc;
+  try {
+    doc = JSON.parse(await file.text());
+  } catch (_) {
+    throw new Error('Это не файл PhipiShip (.photik повреждён)');
+  }
+  if (!doc || doc.format !== 'photik' || !Array.isArray(doc.layers) || !doc.layers.length) {
+    throw new Error('Это не файл PhipiShip (.photik)');
+  }
+  if (doc.version > PHOTIK_VERSION) {
+    throw new Error('Файл создан более новой версией PhipiShip — обновите страницу');
+  }
+  const w = Math.round(doc.width), h = Math.round(doc.height);
+  if (!(w >= 1 && h >= 1 && w <= SIZE_LIMIT && h <= SIZE_LIMIT)) throw new Error('Недопустимый размер холста в файле');
+  const images = await Promise.all(doc.layers.map((l) => {
+    if (typeof l.png !== 'string' || !l.png.startsWith('data:image/png;base64,')) {
+      throw new Error('Повреждённый слой в файле .photik');
+    }
+    return loadDataUrl(l.png);
+  }));
+  if (!confirmDiscard()) return;
+
+  newDocument(w, h, 'transparent');
+  state.layers = doc.layers.map((l, i) => {
+    const L = createLayer(String(l.name || `Слой ${i + 1}`).slice(0, 100));
+    L.visible = l.visible !== false;
+    L.opacity = clamp(Number(l.opacity ?? 1) || 0, 0, 1);
+    L.blend = BLEND_MODES.has(l.blend) ? l.blend : 'source-over';
+    L.ctx.drawImage(images[i], 0, 0);
+    return L;
+  });
+  state.active = clamp(Math.round(doc.active) || 0, 0, state.layers.length - 1);
+  state.docName = baseName(file) || 'phipiship';
+  renderLayers();
+  render();
+  status(`⚓ Открыт проект ${file.name}: ${state.layers.length} сл.`);
+}
+
 async function openFile(file) {
   try {
+    if (isPhotik(file)) {
+      await openProject(file);
+      return;
+    }
     const img = await loadImage(file);
     if (!confirmDiscard()) return;
     const w = Math.min(img.width, SIZE_LIMIT), h = Math.min(img.height, SIZE_LIMIT);
     newDocument(w, h, 'transparent');
-    activeLayer().name = file.name.replace(/\.[^.]+$/, '') || 'Фон';
+    activeLayer().name = baseName(file) || 'Фон';
+    state.docName = baseName(file) || 'phipiship';
     activeLayer().ctx.drawImage(img, 0, 0, w, h);
     renderLayers();
     render();
@@ -2029,7 +2116,10 @@ viewport.addEventListener('dragleave', () => viewport.classList.remove('dragover
 viewport.addEventListener('drop', (e) => {
   e.preventDefault();
   viewport.classList.remove('dragover');
-  for (const f of e.dataTransfer.files) if (f.type.startsWith('image/')) placeFile(f);
+  for (const f of e.dataTransfer.files) {
+    if (isPhotik(f)) { openFile(f); return; }
+    if (f.type.startsWith('image/')) placeFile(f);
+  }
 });
 
 window.addEventListener('paste', (e) => {
@@ -2064,7 +2154,7 @@ window.addEventListener('keydown', (e) => {
 
   if (mod) {
     const map = {
-      z: e.shiftKey ? 'redo' : 'undo', y: 'redo', s: 'savePng', o: 'open', j: 'layerDup',
+      z: e.shiftKey ? 'redo' : 'undo', y: 'redo', s: e.shiftKey ? 'savePng' : 'saveProject', o: 'open', j: 'layerDup',
       e: 'mergeDown', i: e.shiftKey ? 'invertSelection' : 'invert', a: 'selectAll', d: 'deselect',
       c: 'copy', x: 'cut', '0': 'fit', '1': 'actual', '=': 'zoomIn', '+': 'zoomIn', '-': 'zoomOut',
     };

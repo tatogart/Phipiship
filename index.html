@@ -19,10 +19,12 @@
         <button class="menu-title">Файл</button>
         <div class="dropdown">
           <button data-action="new">Новый… <kbd>Ctrl+Alt+N</kbd></button>
-          <button data-action="open">Открыть… <kbd>Ctrl+O</kbd></button>
+          <button data-action="open">Открыть (картинку или .photik)… <kbd>Ctrl+O</kbd></button>
           <button data-action="place">Поместить как слой…</button>
           <hr>
-          <button data-action="savePng">Сохранить PNG <kbd>Ctrl+S</kbd></button>
+          <button data-action="saveProject">Сохранить проект .photik <kbd>Ctrl+S</kbd></button>
+          <hr>
+          <button data-action="savePng">Экспорт PNG <kbd>Ctrl+Shift+S</kbd></button>
           <button data-action="saveJpg">Экспорт JPG…</button>
         </div>
       </div>
@@ -228,7 +230,7 @@
         <path class="wave w1" d="M0 30 Q 75 10 150 30 T 300 30 T 450 30 T 600 30 T 750 30 T 900 30 T 1050 30 T 1200 30 T 1350 30 T 1500 30 T 1650 30 T 1800 30 T 1950 30 T 2100 30 T 2250 30 T 2400 30 V60 H0Z"/>
         <path class="wave w2" d="M0 38 Q 100 22 200 38 T 400 38 T 600 38 T 800 38 T 1000 38 T 1200 38 T 1400 38 T 1600 38 T 1800 38 T 2000 38 T 2200 38 T 2400 38 V60 H0Z"/>
       </svg>
-      <div class="drop-hint" id="dropHint">Отпустите, чтобы добавить изображение как слой</div>
+      <div class="drop-hint" id="dropHint">Отпустите: картинка станет новым слоем, а проект .photik откроется</div>
     </section>
 
     <aside class="panel">
@@ -306,7 +308,7 @@
     </form>
   </div>
 
-  <input type="file" id="fileOpen" accept="image/*" hidden>
+  <input type="file" id="fileOpen" accept="image/*,.photik" hidden>
   <input type="file" id="filePlace" accept="image/*" hidden>
 
   <script src="app.js"></script>
