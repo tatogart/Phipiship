@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Контур — PhipiShip Флот</title>
+  <link rel="icon" href="icon-kontur.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+  <script src="suite.js"></script>
+</head>
+<body>
+  <header class="menubar">
+    <div class="brand">
+      <img src="icon-kontur.svg" alt="" width="22" height="22">
+      <span>Контур</span>
+    </div>
+
+    <nav class="menus">
+      <div class="menu">
+        <button class="menu-title">Файл</button>
+        <div class="dropdown">
+          <button data-action="new">Новый документ…</button>
+          <button data-action="open">Открыть… <kbd>Ctrl+O</kbd></button>
+          <button data-action="placeImage">Поместить картинку…</button>
+          <hr>
+          <button data-action="save">Сохранить .kontur <kbd>Ctrl+S</kbd></button>
+          <hr>
+          <button data-action="exportSvg">Экспорт SVG</button>
+          <button data-action="exportPng">Экспорт PNG…</button>
+          <button data-action="toPhoto">Открыть в PhipiShip Фото</button>
+          <hr>
+          <button data-action="harbor">⚓ Гавань — все программы</button>
+        </div>
+      </div>
+      <div class="menu">
+        <button class="menu-title">Правка</button>
+        <div class="dropdown">
+          <button data-action="undo">Отменить <kbd>Ctrl+Z</kbd></button>
+          <button data-action="redo">Повторить <kbd>Ctrl+Shift+Z</kbd></button>
+          <hr>
+          <button data-action="duplicate">Дублировать <kbd>Ctrl+D</kbd></button>
+          <button data-action="remove">Удалить <kbd>Del</kbd></button>
+          <button data-action="deselect">Снять выделение <kbd>Esc</kbd></button>
+        </div>
+      </div>
+      <div class="menu">
+        <button class="menu-title">Объект</button>
+        <div class="dropdown">
+          <button data-action="toFront">На передний план <kbd>Shift+]</kbd></button>
+          <button data-action="forward">Вперёд <kbd>]</kbd></button>
+          <button data-action="backward">Назад <kbd>[</kbd></button>
+          <button data-action="toBack">На задний план <kbd>Shift+[</kbd></button>
+          <hr>
+          <button data-action="flipH">Отразить по горизонтали</button>
+          <button data-action="flipV">Отразить по вертикали</button>
+        </div>
+      </div>
+      <div class="menu">
+        <button class="menu-title">Вид</button>
+        <div class="dropdown">
+          <button data-action="zoomIn">Приблизить <kbd>Ctrl++</kbd></button>
+          <button data-action="zoomOut">Отдалить <kbd>Ctrl+−</kbd></button>
+          <button data-action="fit">По размеру окна <kbd>Ctrl+0</kbd></button>
+        </div>
+      </div>
+      <div class="menu">
+        <button class="menu-title">Справка</button>
+        <div class="dropdown">
+          <button data-action="shortcuts">Горячие клавиши</button>
+          <button data-action="about">О Контуре</button>
+        </div>
+      </div>
+    </nav>
+
+    <div class="themes" title="Тема оформления">
+      <button data-theme-pick="ocean" title="Ночное море"></button>
+      <button data-theme-pick="sunset" title="Закат"></button>
+      <button data-theme-pick="lagoon" title="Лагуна"></button>
+      <button data-theme-pick="sail" title="Парус (светлая)"></button>
+    </div>
+    <div class="history-btns">
+      <button id="panelToggle" class="panel-toggle" title="Панель">☰</button>
+      <button id="undoBtn" data-action="undo" title="Отменить (Ctrl+Z)">↶</button>
+      <button id="redoBtn" data-action="redo" title="Повторить (Ctrl+Shift+Z)">↷</button>
+    </div>
+  </header>
+
+  <div class="optionsbar">
+    <span class="opt-tool" id="optToolName">Выбор</span>
+    <span class="hint" id="toolHint"></span>
+  </div>
+
+  <main class="workspace">
+    <aside class="toolbar">
+      <button data-tool="select" title="Выбор и перемещение (V)"><svg viewBox="0 0 24 24"><path d="M5 3l14 8-6 1.5L10 19z"/></svg></button>
+      <span class="sep"></span>
+      <button data-tool="rect" title="Прямоугольник (R)"><svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12" rx="2"/></svg></button>
+      <button data-tool="ellipse" title="Эллипс (O)"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="9" ry="7"/></svg></button>
+      <button data-tool="star" title="Звезда (S)"><svg viewBox="0 0 24 24"><path d="m12 3 2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6 6.6 19.5l1.2-6-4.5-4.2 6.1-.7z"/></svg></button>
+      <button data-tool="line" title="Линия (L)"><svg viewBox="0 0 24 24"><path d="M5 19 19 5"/></svg></button>
+      <button data-tool="pen" title="Карандаш (P)"><svg viewBox="0 0 24 24"><path d="M3 17c3-6 6 2 9-4s5-4 9-8"/></svg></button>
+      <button data-tool="text" title="Текст (T)"><svg viewBox="0 0 24 24"><path d="M5 5h14M12 5v14M9 19h6"/></svg></button>
+      <span class="sep"></span>
+      <button data-tool="hand" title="Рука (H, или зажать Пробел)"><svg viewBox="0 0 24 24"><path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V11M11 11V4a1.5 1.5 0 0 1 3 0v7M14 11V5.5a1.5 1.5 0 0 1 3 0V14c0 4-3 7-7 7-3 0-4.5-1.5-6-4l-1.6-2.8a1.5 1.5 0 0 1 2.6-1.5L8 15"/></svg></button>
+    </aside>
+
+    <section class="viewport" id="viewport">
+      <div class="stage" id="stage">
+        <svg id="doc" xmlns="http://www.w3.org/2000/svg">
+          <rect id="docBg" x="0" y="0"/>
+          <g id="objs"></g>
+          <g id="ui"></g>
+        </svg>
+      </div>
+      <svg class="waves" viewBox="0 0 1200 60" preserveAspectRatio="none" aria-hidden="true">
+        <path class="wave w1" d="M0 30 Q 75 10 150 30 T 300 30 T 450 30 T 600 30 T 750 30 T 900 30 T 1050 30 T 1200 30 T 1350 30 T 1500 30 T 1650 30 T 1800 30 T 1950 30 T 2100 30 T 2250 30 T 2400 30 V60 H0Z"/>
+        <path class="wave w2" d="M0 38 Q 100 22 200 38 T 400 38 T 600 38 T 800 38 T 1000 38 T 1200 38 T 1400 38 T 1600 38 T 1800 38 T 2000 38 T 2200 38 T 2400 38 V60 H0Z"/>
+      </svg>
+      <div class="drop-hint">Отпустите: картинка будет помещена, а файл флота откроется</div>
+    </section>
+
+    <aside class="panel">
+      <section class="panel-block">
+        <h3 id="propsTitle">Новые фигуры</h3>
+        <div class="props" id="props">
+          <div class="row"><label><input type="checkbox" id="pFillOn"> Заливка</label><input type="color" id="pFill"></div>
+          <div class="row"><label><input type="checkbox" id="pStrokeOn"> Обводка</label><input type="color" id="pStroke"></div>
+          <div class="row"><span>Толщина</span><input type="number" id="pStrokeW" min="0" max="200" step="0.5"></div>
+          <div class="row"><span>Непрозрачность</span><input type="range" id="pOpacity" min="0" max="100"></div>
+          <div class="row" data-only="rect"><span>Скругление</span><input type="number" id="pRadius" min="0" max="1000"></div>
+          <div class="row" data-only="star"><span>Лучей</span><input type="number" id="pPoints" min="3" max="40"></div>
+          <div class="row" data-only="text"><span>Кегль</span><input type="number" id="pFontSize" min="4" max="1000"></div>
+          <div class="row" data-only="text"><label><input type="checkbox" id="pBold"> Жирный</label>
+            <select id="pFont">
+              <option value="system-ui, sans-serif">Без засечек</option>
+              <option value="Georgia, serif">С засечками</option>
+              <option value="ui-monospace, monospace">Моноширинный</option>
+              <option value="Impact, 'Arial Black', sans-serif">Плакатный</option>
+            </select>
+          </div>
+          <textarea id="pText" rows="2" data-only="text" placeholder="Текст"></textarea>
+          <div class="row" data-only="sel"><span>X / Y</span><span><input type="number" id="pX" style="width:64px"> <input type="number" id="pY" style="width:64px"></span></div>
+          <div class="row" data-only="sel"><span>Ш / В</span><span><input type="number" id="pW" style="width:64px" min="1"> <input type="number" id="pH" style="width:64px" min="1"></span></div>
+          <p class="hint-small" id="propsHint">Эти настройки применятся к следующей нарисованной фигуре.</p>
+        </div>
+      </section>
+      <section class="panel-block">
+        <h3>Палитра</h3>
+        <div class="palette" id="palette"></div>
+        <p class="hint-small" style="margin-top:8px">Клик — заливка, правый клик — обводка.</p>
+      </section>
+      <section class="panel-block layers-block">
+        <h3>Объекты</h3>
+        <ul class="objects" id="objects"></ul>
+        <div class="layer-actions">
+          <button data-action="forward" title="Вперёд">▲</button>
+          <button data-action="backward" title="Назад">▼</button>
+          <button data-action="duplicate" title="Дублировать">⧉</button>
+          <button data-action="remove" title="Удалить">🗑</button>
+        </div>
+      </section>
+    </aside>
+  </main>
+
+  <footer class="statusbar">
+    <span id="statusCoords">—</span>
+    <span id="statusSize"></span>
+    <span class="zoom-ctl">
+      <button data-action="zoomOut" title="Отдалить">−</button>
+      <span id="zoomLabel">100%</span>
+      <button data-action="zoomIn" title="Приблизить">+</button>
+    </span>
+    <span id="statusMsg" class="msg"></span>
+  </footer>
+
+  <div class="modal" id="modal" hidden>
+    <form class="modal-box" id="modalForm">
+      <h2 id="modalTitle"></h2>
+      <div id="modalBody" class="modal-body"></div>
+      <div class="modal-buttons">
+        <button type="button" id="modalCancel">Отмена</button>
+        <button type="submit" id="modalOk" class="primary">OK</button>
+      </div>
+    </form>
+  </div>
+
+  <input type="file" id="fileOpen" hidden>
+  <input type="file" id="fileImage" accept="image/*" hidden>
+
+  <script src="ui.js"></script>
+  <script src="kontur.js"></script>
+</body>
+</html>

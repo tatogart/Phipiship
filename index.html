@@ -3,314 +3,75 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>PhipiShip — графический редактор</title>
-  <link rel="icon" href="logo.svg" type="image/svg+xml">
+  <title>PhipiShip Флот — Гавань</title>
+  <meta name="description" content="Бесплатный набор творческих программ в браузере: графика, анимация и вектор.">
+  <link rel="icon" href="icon-fleet.svg" type="image/svg+xml">
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="hub.css">
+  <script src="suite.js"></script>
 </head>
-<body>
-  <header class="menubar">
-    <div class="brand">
-      <img src="logo.svg" alt="" width="22" height="22">
-      <span>PhipiShip</span>
-    </div>
-
-    <nav class="menus">
-      <div class="menu">
-        <button class="menu-title">Файл</button>
-        <div class="dropdown">
-          <button data-action="new">Новый… <kbd>Ctrl+Alt+N</kbd></button>
-          <button data-action="open">Открыть (картинку или .photik)… <kbd>Ctrl+O</kbd></button>
-          <button data-action="place">Поместить как слой…</button>
-          <hr>
-          <button data-action="saveProject">Сохранить проект .photik <kbd>Ctrl+S</kbd></button>
-          <hr>
-          <button data-action="savePng">Экспорт PNG <kbd>Ctrl+Shift+S</kbd></button>
-          <button data-action="saveJpg">Экспорт JPG…</button>
-        </div>
-      </div>
-      <div class="menu">
-        <button class="menu-title">Правка</button>
-        <div class="dropdown">
-          <button data-action="undo">Отменить <kbd>Ctrl+Z</kbd></button>
-          <button data-action="redo">Повторить <kbd>Ctrl+Shift+Z</kbd></button>
-          <hr>
-          <button data-action="clearLayer">Очистить слой <kbd>Del</kbd></button>
-          <button data-action="fillLayer">Залить слой основным цветом</button>
-        </div>
-      </div>
-      <div class="menu">
-        <button class="menu-title">Изображение</button>
-        <div class="dropdown">
-          <button data-action="imageSize">Размер изображения…</button>
-          <button data-action="canvasSize">Размер холста…</button>
-          <hr>
-          <button data-action="rotCW">Повернуть на 90° по часовой</button>
-          <button data-action="rotCCW">Повернуть на 90° против часовой</button>
-          <button data-action="flipH">Отразить холст по горизонтали</button>
-          <button data-action="flipV">Отразить холст по вертикали</button>
-          <hr>
-          <button data-action="flatten">Свести все слои</button>
-        </div>
-      </div>
-      <div class="menu">
-        <button class="menu-title">Слой</button>
-        <div class="dropdown">
-          <button data-action="layerNew">Новый слой <kbd>Ctrl+Shift+N</kbd></button>
-          <button data-action="layerDup">Дублировать слой <kbd>Ctrl+J</kbd></button>
-          <button data-action="layerDel">Удалить слой</button>
-          <button data-action="mergeDown">Объединить с нижним <kbd>Ctrl+E</kbd></button>
-          <hr>
-          <button data-action="layerUp">Поднять</button>
-          <button data-action="layerDown">Опустить</button>
-          <hr>
-          <button data-action="flipLayerH">Отразить слой по горизонтали</button>
-          <button data-action="flipLayerV">Отразить слой по вертикали</button>
-        </div>
-      </div>
-      <div class="menu">
-        <button class="menu-title">Выделение</button>
-        <div class="dropdown">
-          <button data-action="selectAll">Выделить всё <kbd>Ctrl+A</kbd></button>
-          <button data-action="deselect">Снять выделение <kbd>Ctrl+D</kbd></button>
-          <button data-action="invertSelection">Инвертировать выделение <kbd>Ctrl+Shift+I</kbd></button>
-          <hr>
-          <button data-action="copy">Копировать <kbd>Ctrl+C</kbd></button>
-          <button data-action="cut">Вырезать <kbd>Ctrl+X</kbd></button>
-          <button data-action="pasteInternal">Вставить как новый слой <kbd>Ctrl+V</kbd></button>
-          <hr>
-          <button data-action="cropToSelection">Кадрировать по выделению</button>
-        </div>
-      </div>
-      <div class="menu">
-        <button class="menu-title">Фильтры</button>
-        <div class="dropdown">
-          <button data-action="brightness">Яркость / Контраст…</button>
-          <button data-action="hueSat">Тон / Насыщенность…</button>
-          <hr>
-          <button data-action="grayscale">Обесцветить</button>
-          <button data-action="invert">Инвертировать <kbd>Ctrl+I</kbd></button>
-          <button data-action="sepia">Сепия</button>
-          <hr>
-          <button data-action="blur">Размытие…</button>
-          <button data-action="sharpen">Резкость…</button>
-          <button data-action="noise">Шум…</button>
-          <button data-action="pixelate">Пикселизация…</button>
-          <button data-action="threshold">Порог…</button>
-        </div>
-      </div>
-      <div class="menu">
-        <button class="menu-title">Вид</button>
-        <div class="dropdown">
-          <button data-action="zoomIn">Приблизить <kbd>Ctrl++</kbd></button>
-          <button data-action="zoomOut">Отдалить <kbd>Ctrl+−</kbd></button>
-          <button data-action="fit">По размеру окна <kbd>Ctrl+0</kbd></button>
-          <button data-action="actual">100% <kbd>Ctrl+1</kbd></button>
-        </div>
-      </div>
-      <div class="menu">
-        <button class="menu-title">Справка</button>
-        <div class="dropdown">
-          <button data-action="shortcuts">Горячие клавиши</button>
-          <button data-action="about">О программе</button>
-        </div>
-      </div>
-    </nav>
-
-    <div class="themes" id="themes" title="Тема оформления">
+<body class="hub">
+  <header class="hub-top">
+    <a class="hub-brand" href="index.html">
+      <img src="icon-fleet.svg" alt="" width="34" height="34">
+      <span>PhipiShip <b>Флот</b></span>
+    </a>
+    <div class="themes" title="Тема оформления">
       <button data-theme-pick="ocean" title="Ночное море"></button>
       <button data-theme-pick="sunset" title="Закат"></button>
       <button data-theme-pick="lagoon" title="Лагуна"></button>
       <button data-theme-pick="sail" title="Парус (светлая)"></button>
     </div>
-
-    <div class="history-btns">
-      <button id="panelToggle" class="panel-toggle" title="Слои и палитра">☰</button>
-      <button id="undoBtn" data-action="undo" title="Отменить (Ctrl+Z)">↶</button>
-      <button id="redoBtn" data-action="redo" title="Повторить (Ctrl+Shift+Z)">↷</button>
-    </div>
   </header>
 
-  <div class="optionsbar">
-    <span class="opt-tool" id="optToolName">Кисть</span>
-    <label data-for="brush eraser line rect ellipse">Размер
-      <input type="range" id="size" min="1" max="200" value="12">
-      <output id="sizeOut">12</output>
-    </label>
-    <label data-for="brush eraser line rect ellipse fill text gradient">Непрозрачность
-      <input type="range" id="opacity" min="1" max="100" value="100">
-      <output id="opacityOut">100%</output>
-    </label>
-    <label data-for="fill">Допуск
-      <input type="range" id="tolerance" min="0" max="255" value="32">
-      <output id="toleranceOut">32</output>
-    </label>
-    <label data-for="rect ellipse">
-      <input type="checkbox" id="shapeFill"> Заливка
-    </label>
-    <label data-for="text">Шрифт
-      <select id="font">
-        <option value="system-ui, sans-serif">Без засечек</option>
-        <option value="Georgia, serif">С засечками</option>
-        <option value="ui-monospace, monospace">Моноширинный</option>
-        <option value="Impact, 'Arial Black', sans-serif">Плакатный</option>
-        <option value="'Comic Sans MS', 'Comic Neue', cursive">Рукописный</option>
-      </select>
-    </label>
-    <label data-for="text">Кегль
-      <input type="number" id="fontSize" min="4" max="999" value="48">
-    </label>
-    <label data-for="text">
-      <input type="checkbox" id="fontBold"> Жирный
-    </label>
-    <label data-for="select">Форма
-      <select id="selShape">
-        <option value="rect">Прямоугольник</option>
-        <option value="ellipse">Овал</option>
-      </select>
-    </label>
-    <label data-for="gradient">Тип
-      <select id="gradType">
-        <option value="linear">Линейный</option>
-        <option value="radial">Радиальный</option>
-      </select>
-    </label>
-    <label data-for="gradient">Цвета
-      <select id="gradMode">
-        <option value="two">Основной → фоновый</option>
-        <option value="fade">Основной → прозрачный</option>
-      </select>
-    </label>
-    <span data-for="crop" class="crop-actions">
-      <button id="cropApply" class="primary">Применить (Enter)</button>
-      <button id="cropCancel">Отмена (Esc)</button>
-    </span>
-    <span data-for="move picker hand zoom select gradient" class="hint" id="toolHint"></span>
-  </div>
-
-  <main class="workspace">
-    <aside class="toolbar" id="toolbar">
-      <button data-tool="move" title="Перемещение (V)"><svg viewBox="0 0 24 24"><path d="M12 2v20M2 12h20M12 2 9 5M12 2l3 3M12 22l-3-3M12 22l3-3M2 12l3-3M2 12l3 3M22 12l-3-3M22 12l-3 3"/></svg></button>
-      <button data-tool="select" title="Выделение (M)"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="1" stroke-dasharray="3 2.6"/></svg></button>
-      <button data-tool="crop" title="Кадрирование (C)"><svg viewBox="0 0 24 24"><path d="M6 2v16h16M2 6h16v16"/></svg></button>
-      <span class="sep"></span>
-      <button data-tool="brush" title="Кисть (B)"><svg viewBox="0 0 24 24"><path d="M9.5 14.5 20 4a1.4 1.4 0 0 0-2-2L7.5 12.5"/><path d="M7 13c-2 0-3.5 1.5-3.5 3.5 0 1.5-1 2.5-1.5 3 3 .5 7-.5 7-4.5a2 2 0 0 0-2-2z"/></svg></button>
-      <button data-tool="eraser" title="Ластик (E)"><svg viewBox="0 0 24 24"><path d="m7 21-4-4L14 6l7 7-8 8H7zM9.5 10.5l7 7M13 21h8"/></svg></button>
-      <button data-tool="fill" title="Заливка (G)"><svg viewBox="0 0 24 24"><path d="m4 11 7-7 8 8-7 7zM4 11h15M20 15s2 2.7 2 4a2 2 0 0 1-4 0c0-1.3 2-4 2-4z"/></svg></button>
-      <button data-tool="gradient" title="Градиент (R)"><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="M3.5 15.5 15.5 3.5M3.5 10l6.5-6.5M8.5 20.5l12-12M14 20.5l6.5-6.5" stroke-width="1.2"/></svg></button>
-      <button data-tool="picker" title="Пипетка (I)"><svg viewBox="0 0 24 24"><path d="M14 7 5 16v3h3l9-9M13 6l5 5M16 3.5a2.5 2.5 0 0 1 3.5 0l1 1a2.5 2.5 0 0 1 0 3.5L18 10.5 13.5 6z"/></svg></button>
-      <span class="sep"></span>
-      <button data-tool="text" title="Текст (T)"><svg viewBox="0 0 24 24"><path d="M5 5h14M12 5v14M9 19h6"/></svg></button>
-      <button data-tool="line" title="Линия (L)"><svg viewBox="0 0 24 24"><path d="M5 19 19 5"/></svg></button>
-      <button data-tool="rect" title="Прямоугольник (U)"><svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12" rx="1"/></svg></button>
-      <button data-tool="ellipse" title="Эллипс (O)"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="9" ry="7"/></svg></button>
-      <span class="sep"></span>
-      <button data-tool="hand" title="Рука (H, или зажать Пробел)"><svg viewBox="0 0 24 24"><path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V11M11 11V4a1.5 1.5 0 0 1 3 0v7M14 11V5.5a1.5 1.5 0 0 1 3 0V14c0 4-3 7-7 7-3 0-4.5-1.5-6-4l-1.6-2.8a1.5 1.5 0 0 1 2.6-1.5L8 15"/></svg></button>
-      <button data-tool="zoom" title="Масштаб (Z, Alt — отдалить)"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5M8 10.5h5M10.5 8v5"/></svg></button>
-
-      <div class="colors">
-        <div class="swatches">
-          <button id="secondarySwatch" class="swatch secondary" title="Фоновый цвет"></button>
-          <button id="primarySwatch" class="swatch primary" title="Основной цвет"></button>
-        </div>
-        <div class="color-tools">
-          <button id="swapColors" title="Поменять местами (X)">⇄</button>
-          <button id="resetColors" title="По умолчанию (D)">◩</button>
-        </div>
-        <input type="color" id="primaryInput" value="#000000" hidden>
-        <input type="color" id="secondaryInput" value="#ffffff" hidden>
+  <main class="hub-main">
+    <section class="hero">
+      <h1>⚓ Гавань</h1>
+      <p>Выберите судно — или просто бросьте файл в окно: Гавань сама узнает формат и откроет его в нужной программе.</p>
+      <div class="hero-actions">
+        <button class="primary big" id="openAny">Открыть файл…</button>
+        <span class="formats-line" id="formatsLine"></span>
       </div>
-    </aside>
-
-    <section class="viewport" id="viewport">
-      <div class="stage" id="stage">
-        <canvas id="view"></canvas>
-        <canvas id="overlay"></canvas>
-      </div>
-      <svg class="waves" viewBox="0 0 1200 60" preserveAspectRatio="none" aria-hidden="true">
-        <path class="wave w1" d="M0 30 Q 75 10 150 30 T 300 30 T 450 30 T 600 30 T 750 30 T 900 30 T 1050 30 T 1200 30 T 1350 30 T 1500 30 T 1650 30 T 1800 30 T 1950 30 T 2100 30 T 2250 30 T 2400 30 V60 H0Z"/>
-        <path class="wave w2" d="M0 38 Q 100 22 200 38 T 400 38 T 600 38 T 800 38 T 1000 38 T 1200 38 T 1400 38 T 1600 38 T 1800 38 T 2000 38 T 2200 38 T 2400 38 V60 H0Z"/>
-      </svg>
-      <div class="drop-hint" id="dropHint">Отпустите: картинка станет новым слоем, а проект .photik откроется</div>
     </section>
 
-    <aside class="panel">
-      <section class="panel-block">
-        <h3>Палитра</h3>
-        <div class="palette" id="palette"></div>
-      </section>
+    <section>
+      <h2>Программы</h2>
+      <div class="apps" id="apps"></div>
+    </section>
 
-      <section class="panel-block layers-block">
-        <h3>Слои</h3>
-        <div class="layer-props">
-          <select id="blendMode" title="Режим наложения">
-            <option value="source-over">Обычный</option>
-            <option value="multiply">Умножение</option>
-            <option value="screen">Экран</option>
-            <option value="overlay">Перекрытие</option>
-            <option value="darken">Затемнение</option>
-            <option value="lighten">Замена светлым</option>
-            <option value="color-dodge">Осветление основы</option>
-            <option value="color-burn">Затемнение основы</option>
-            <option value="hard-light">Жёсткий свет</option>
-            <option value="soft-light">Мягкий свет</option>
-            <option value="difference">Разница</option>
-            <option value="exclusion">Исключение</option>
-            <option value="hue">Цветовой тон</option>
-            <option value="saturation">Насыщенность</option>
-            <option value="color">Цветность</option>
-            <option value="luminosity">Яркость</option>
-          </select>
-          <label class="layer-opacity" title="Непрозрачность слоя">
-            <input type="range" id="layerOpacity" min="0" max="100" value="100">
-            <output id="layerOpacityOut">100%</output>
-          </label>
-        </div>
-        <ul class="layers" id="layers"></ul>
-        <div class="layer-actions">
-          <button data-action="layerNew" title="Новый слой">＋</button>
-          <button data-action="layerDup" title="Дублировать">⧉</button>
-          <button data-action="layerUp" title="Поднять">▲</button>
-          <button data-action="layerDown" title="Опустить">▼</button>
-          <button data-action="mergeDown" title="Объединить с нижним">⤓</button>
-          <button data-action="layerDel" title="Удалить слой">🗑</button>
-        </div>
-      </section>
-    </aside>
+    <section>
+      <div class="section-head">
+        <h2>Недавние</h2>
+        <span class="muted">хранятся только в этом браузере</span>
+      </div>
+      <div class="recent" id="recent"></div>
+    </section>
+
+    <section>
+      <h2>Форматы файлов</h2>
+      <div class="table-wrap">
+        <table class="formats">
+          <thead><tr><th>Файл</th><th>Программа</th><th>Что внутри</th></tr></thead>
+          <tbody id="formats"></tbody>
+        </table>
+      </div>
+      <p class="muted small">Все форматы флота — открытый JSON с картинками PNG внутри: файлы не привязаны к нашему сайту, их можно разобрать любым скриптом.</p>
+    </section>
   </main>
 
-  <footer class="statusbar">
-    <span id="statusCoords">—</span>
-    <span id="statusSize"></span>
-    <span class="zoom-ctl">
-      <button data-action="zoomOut" title="Отдалить">−</button>
-      <span id="zoomLabel">100%</span>
-      <button data-action="zoomIn" title="Приблизить">+</button>
-    </span>
-    <span id="statusMsg" class="msg"></span>
+  <footer class="hub-foot">
+    PhipiShip Флот — независимый проект с открытым кодом (MIT). Всё работает прямо в браузере, файлы никуда не отправляются.
   </footer>
 
-  <div class="splash" id="splash">
-    <div class="splash-boat">
-      <img src="logo.svg" alt="" width="96" height="96">
-    </div>
-    <div class="splash-title">PhipiShip</div>
-    <div class="splash-sub">Отдаём швартовы…</div>
-  </div>
+  <svg class="hub-waves" viewBox="0 0 1200 80" preserveAspectRatio="none" aria-hidden="true">
+    <path class="wave w1" d="M0 40 Q 75 20 150 40 T 300 40 T 450 40 T 600 40 T 750 40 T 900 40 T 1050 40 T 1200 40 T 1350 40 T 1500 40 T 1650 40 T 1800 40 T 1950 40 T 2100 40 T 2250 40 T 2400 40 V80 H0Z"/>
+    <path class="wave w2" d="M0 50 Q 100 32 200 50 T 400 50 T 600 50 T 800 50 T 1000 50 T 1200 50 T 1400 50 T 1600 50 T 1800 50 T 2000 50 T 2200 50 T 2400 50 V80 H0Z"/>
+  </svg>
 
-  <div class="modal" id="modal" hidden>
-    <form class="modal-box" id="modalForm">
-      <h2 id="modalTitle"></h2>
-      <div id="modalBody" class="modal-body"></div>
-      <div class="modal-buttons">
-        <button type="button" id="modalCancel">Отмена</button>
-        <button type="submit" id="modalOk" class="primary">OK</button>
-      </div>
-    </form>
-  </div>
+  <div class="drop-veil" id="dropVeil"><div>Отпустите — откроем в нужной программе</div></div>
+  <div class="toast" id="toast"></div>
+  <input type="file" id="fileAny" hidden>
 
-  <input type="file" id="fileOpen" accept="image/*,.photik" hidden>
-  <input type="file" id="filePlace" accept="image/*" hidden>
-
-  <script src="app.js"></script>
+  <script src="hub.js"></script>
 </body>
 </html>

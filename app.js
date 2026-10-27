@@ -1644,6 +1644,7 @@ const actions = {
   open() { $('#fileOpen').click(); },
   place() { $('#filePlace').click(); },
   saveProject,
+  harbor() { location.href = 'index.html'; },
   savePng() {
     const name = state.docName + '.png';
     composite().toBlob((b) => download(b, name), 'image/png');
@@ -2018,7 +2019,9 @@ function saveProject() {
   };
   // octet-stream, чтобы браузер не дописал к имени «.json»
   const name = state.docName + '.photik';
-  download(new Blob([JSON.stringify(doc)], { type: 'application/octet-stream' }), name);
+  const blob = new Blob([JSON.stringify(doc)], { type: 'application/octet-stream' });
+  download(blob, name);
+  Fleet.addRecent(name, 'photo', blob, Fleet.thumbOf(composite()));
   state.dirty = false;
   status(`⚓ Проект сохранён в гавани: ${name} (${state.layers.length} сл.)`);
 }
@@ -2068,11 +2071,17 @@ async function openProject(file) {
   state.docName = baseName(file) || 'phipiship';
   renderLayers();
   render();
+  Fleet.addRecent(file.name, 'photo', file, Fleet.thumbOf(composite()));
   status(`⚓ Открыт проект ${file.name}: ${state.layers.length} сл.`);
 }
 
 async function openFile(file) {
   try {
+    const app = Fleet.appForFile(file.name, file.type);
+    if (app && app.id !== 'photo') {
+      if (confirmDiscard()) await Fleet.openIn(file, app.id);
+      return;
+    }
     if (isPhotik(file)) {
       await openProject(file);
       return;
@@ -2117,7 +2126,8 @@ viewport.addEventListener('drop', (e) => {
   e.preventDefault();
   viewport.classList.remove('dragover');
   for (const f of e.dataTransfer.files) {
-    if (isPhotik(f)) { openFile(f); return; }
+    const app = Fleet.appForFile(f.name, f.type);
+    if (isPhotik(f) || (app && app.id !== 'photo')) { openFile(f); return; }
     if (f.type.startsWith('image/')) placeFile(f);
   }
 });
@@ -2216,15 +2226,9 @@ window.addEventListener('keyup', (e) => {
 
 /* ---------------- Темы ---------------- */
 
-function setTheme(name) {
-  document.documentElement.dataset.theme = name;
-  for (const b of $$('[data-theme-pick]')) b.classList.toggle('active', b.dataset.themePick === name);
-  try { localStorage.setItem('phipiship-theme', name); } catch (_) { /* приватный режим */ }
-}
-for (const b of $$('[data-theme-pick]')) b.addEventListener('click', () => setTheme(b.dataset.themePick));
-let savedTheme = 'ocean';
-try { savedTheme = localStorage.getItem('phipiship-theme') || 'ocean'; } catch (_) { /* приватный режим */ }
-setTheme(savedTheme);
+Fleet.initThemePicker();
+Fleet.mountSwitcher('photo');
+$('#fileOpen').accept = Fleet.ACCEPT_ALL;
 
 /* ---------------- Подсказки-флажки у инструментов ---------------- */
 
@@ -2279,3 +2283,6 @@ setPrimary(state.primary);
 setSecondary(state.secondary);
 setTool('brush');
 newDocument(state.w, state.h, '#ffffff');
+
+// Файл, переданный из Гавани или другой программы флота.
+Fleet.takeHandoff().then((file) => { if (file) openFile(file); });
