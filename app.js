@@ -12,21 +12,25 @@ const TOOL_NAMES = {
   move: 'Перемещение', crop: 'Кадрирование', brush: 'Кисть', eraser: 'Ластик',
   fill: 'Заливка', picker: 'Пипетка', text: 'Текст', line: 'Линия',
   rect: 'Прямоугольник', ellipse: 'Эллипс', hand: 'Рука', zoom: 'Масштаб',
+  select: 'Выделение', gradient: 'Градиент',
 };
 const TOOL_HINTS = {
-  move: 'Перетащите, чтобы сдвинуть активный слой. Стрелки — сдвиг на 1 px (Shift — на 10 px).',
+  move: 'Перетащите, чтобы сдвинуть слой (или только выделенный фрагмент). Стрелки — на 1 px, Shift — на 10 px.',
   picker: 'Клик — основной цвет, Alt+клик — фоновый.',
   hand: 'Перетащите, чтобы прокрутить холст. Колесо мыши — масштаб.',
   zoom: 'Клик — приблизить, Alt+клик — отдалить.',
+  select: 'Shift — квадрат/круг, клик мимо — снять. Ctrl+C / Ctrl+X / Ctrl+V, Del — очистить.',
+  gradient: 'Протяните линию: от основного цвета к фоновому. Shift — шаг 45°.',
 };
 const TOOL_KEYS = {
   v: 'move', c: 'crop', b: 'brush', e: 'eraser', g: 'fill', i: 'picker',
   t: 'text', l: 'line', u: 'rect', o: 'ellipse', h: 'hand', z: 'zoom',
+  m: 'select', r: 'gradient',
 };
 const TOOL_CURSORS = {
   move: 'move', crop: 'crosshair', brush: 'none', eraser: 'none', fill: 'crosshair',
   picker: 'crosshair', text: 'text', line: 'crosshair', rect: 'crosshair',
-  ellipse: 'crosshair', hand: 'grab', zoom: 'zoom-in',
+  ellipse: 'crosshair', hand: 'grab', zoom: 'zoom-in', select: 'crosshair', gradient: 'crosshair',
 };
 const PALETTE = [
   '#000000', '#3a3a3a', '#7a7a7a', '#b5b5b5', '#ffffff', '#5b3a29', '#a0522d', '#d2a679', '#f5deb3', '#fff4e0',
@@ -48,6 +52,9 @@ const state = {
   font: 'system-ui, sans-serif',
   fontSize: 48,
   fontBold: false,
+  selShape: 'rect',
+  gradType: 'linear',
+  gradMode: 'two',
   zoom: 1, panX: 0, panY: 0,
   dirty: false,
 };
@@ -61,6 +68,10 @@ const temp = document.createElement('canvas');      // предпросмотр 
 const tctx = temp.getContext('2d');
 const scratch = document.createElement('canvas');   // слой + предпросмотр
 const sctx = scratch.getContext('2d');
+const overlay = $('#overlay');                       // рамки: выделение, кадр, линия градиента
+const octx = overlay.getContext('2d');
+const tempMasked = document.createElement('canvas'); // предпросмотр, обрезанный выделением
+const tmctx = tempMasked.getContext('2d');
 
 const brushCursor = document.createElement('div');
 brushCursor.className = 'brush-cursor';
@@ -125,7 +136,7 @@ function createLayer(name, fill) {
 const activeLayer = () => state.layers[state.active];
 
 function resizeAux() {
-  for (const c of [view, temp, scratch]) {
+  for (const c of [view, temp, scratch, overlay, tempMasked]) {
     c.width = state.w;
     c.height = state.h;
   }
@@ -141,6 +152,7 @@ function newDocument(w, h, bg) {
   history.undo.length = 0;
   history.redo.length = 0;
   state.dirty = false;
+  selection = null;
   cancelCrop();
   updateHistoryButtons();
   renderLayers();
@@ -170,6 +182,8 @@ function snapshot() {
 }
 
 function restore(s) {
+  if (s.w !== state.w || s.h !== state.h) selection = null;
+  maskCache = null;
   state.w = s.w;
   state.h = s.h;
   resizeAux();
@@ -236,7 +250,14 @@ function render() {
       sctx.drawImage(L.canvas, 0, 0);
       sctx.globalAlpha = stroke.alpha;
       sctx.globalCompositeOperation = stroke.op;
-      sctx.drawImage(temp, 0, 0);
+      sctx.drawImage(maskedTemp(), 0, 0);
+      src = scratch;
+    } else if (L.float) {
+      sctx.globalAlpha = 1;
+      sctx.globalCompositeOperation = 'source-over';
+      sctx.clearRect(0, 0, state.w, state.h);
+      sctx.drawImage(L.canvas, 0, 0);
+      sctx.drawImage(L.float.canvas, L.float.dx, L.float.dy);
       src = scratch;
     }
     vctx.globalAlpha = L.opacity;
@@ -246,10 +267,75 @@ function render() {
   vctx.globalAlpha = 1;
   vctx.globalCompositeOperation = 'source-over';
 
-  if (crop) drawCropOverlay();
+  drawOverlay();
 }
 
-function drawCropOverlay() {
+/** Предпросмотр мазка, обрезанный по выделению (без выделения — как есть). */
+function maskedTemp() {
+  if (!selection) return temp;
+  tmctx.globalCompositeOperation = 'source-over';
+  tmctx.clearRect(0, 0, state.w, state.h);
+  tmctx.drawImage(temp, 0, 0);
+  tmctx.globalCompositeOperation = 'destination-in';
+  tmctx.drawImage(selectionMask(), 0, 0);
+  tmctx.globalCompositeOperation = 'source-over';
+  return tempMasked;
+}
+
+let antsOffset = 0;
+
+function drawOverlay() {
+  octx.clearRect(0, 0, state.w, state.h);
+  const lw = 1 / state.zoom;
+  if (crop) drawCropOverlay(lw);
+  const sel = drag && drag.type === 'select' ? drag.sel : selection;
+  if (sel) {
+    const off = sel.float ? { x: sel.float.dx, y: sel.float.dy } : { x: 0, y: 0 };
+    octx.save();
+    octx.translate(off.x, off.y);
+    octx.lineWidth = lw;
+    octx.beginPath();
+    selectionPath(octx, sel);
+    octx.setLineDash([]);
+    octx.strokeStyle = '#000';
+    octx.stroke();
+    octx.setLineDash([5 * lw, 5 * lw]);
+    octx.lineDashOffset = -antsOffset * lw;
+    octx.strokeStyle = '#fff';
+    octx.stroke();
+    octx.restore();
+  }
+  if (drag && drag.type === 'gradient' && drag.end) {
+    const { start: a, end: b } = drag;
+    octx.save();
+    octx.lineWidth = 2 * lw;
+    octx.strokeStyle = '#fff';
+    octx.shadowColor = 'rgba(0,0,0,.7)';
+    octx.shadowBlur = 3 * lw;
+    octx.beginPath();
+    octx.moveTo(a.x, a.y);
+    octx.lineTo(b.x, b.y);
+    octx.stroke();
+    for (const [pt, c] of [[a, state.primary], [b, state.gradMode === 'fade' ? 'rgba(0,0,0,0)' : state.secondary]]) {
+      octx.beginPath();
+      octx.arc(pt.x, pt.y, 6 * lw, 0, Math.PI * 2);
+      octx.fillStyle = c;
+      octx.fill();
+      octx.stroke();
+    }
+    octx.restore();
+  }
+}
+
+// «Бегущие муравьи» вокруг выделения.
+setInterval(() => {
+  if (!selection && !(drag && drag.type === 'select')) return;
+  antsOffset = (antsOffset + 1) % 10;
+  drawOverlay();
+}, 90);
+
+function drawCropOverlay(lw) {
+  const vctx = octx;
   const { x, y, w, h } = crop;
   vctx.save();
   vctx.fillStyle = 'rgba(0,0,0,.55)';
@@ -257,7 +343,6 @@ function drawCropOverlay() {
   vctx.rect(0, 0, state.w, state.h);
   vctx.rect(x, y, w, h);
   vctx.fill('evenodd');
-  const lw = 1 / state.zoom;
   vctx.lineWidth = lw;
   vctx.strokeStyle = '#fff';
   vctx.setLineDash([6 * lw, 4 * lw]);
@@ -470,6 +555,9 @@ $('#shapeFill').addEventListener('change', (e) => (state.shapeFill = e.target.ch
 $('#font').addEventListener('change', (e) => (state.font = e.target.value));
 $('#fontSize').addEventListener('input', (e) => (state.fontSize = clamp(Number(e.target.value) || 48, 4, 999)));
 $('#fontBold').addEventListener('change', (e) => (state.fontBold = e.target.checked));
+$('#selShape').addEventListener('change', (e) => (state.selShape = e.target.value));
+$('#gradType').addEventListener('change', (e) => (state.gradType = e.target.value));
+$('#gradMode').addEventListener('change', (e) => (state.gradMode = e.target.value));
 
 /* ---------------- Цвета ---------------- */
 
@@ -543,7 +631,8 @@ function startPinch() {
     } else if (drag.type === 'move') {
       const L = activeLayer();
       L.dx = L.dy = 0;
-      history.undo.pop();
+      if (selection) delete selection.float;
+      restore(history.undo.pop()); // вернуть оторванный фрагмент на место
       updateHistoryButtons();
     } else if (drag.type === 'crop') {
       cancelCrop();
@@ -640,7 +729,16 @@ viewport.addEventListener('pointerdown', (e) => {
     case 'move':
       if (!ensureEditable()) return;
       pushHistory();
+      if (selection) liftSelection(activeLayer());
       drag = { type: 'move', start: p };
+      break;
+    case 'select':
+      drag = { type: 'select', start: p, sel: null };
+      break;
+    case 'gradient':
+      if (!ensureEditable()) return;
+      Object.assign(stroke, { preview: false, alpha: state.opacity, op: 'source-over' });
+      drag = { type: 'gradient', start: p, end: null };
       break;
     case 'crop':
       crop = { x: clamp(p.x, 0, state.w), y: clamp(p.y, 0, state.h), w: 0, h: 0 };
@@ -701,11 +799,26 @@ viewport.addEventListener('pointermove', (e) => {
       break;
     case 'move': {
       const L = activeLayer();
-      L.dx = Math.round(p.x - drag.start.x);
-      L.dy = Math.round(p.y - drag.start.y);
+      const dx = Math.round(p.x - drag.start.x), dy = Math.round(p.y - drag.start.y);
+      if (L.float) {
+        L.float.dx = dx;
+        L.float.dy = dy;
+      } else {
+        L.dx = dx;
+        L.dy = dy;
+      }
       render();
       break;
     }
+    case 'select':
+      drag.sel = selectionFromDrag(drag.start, p, e.shiftKey);
+      drawOverlay();
+      break;
+    case 'gradient':
+      stroke.preview = true;
+      drag.end = drawGradient(tctx, drag.start, p, e.shiftKey);
+      render();
+      break;
     case 'crop': {
       const x2 = clamp(p.x, 0, state.w), y2 = clamp(p.y, 0, state.h);
       crop = {
@@ -738,7 +851,14 @@ function endDrag() {
       break;
     case 'move': {
       const L = activeLayer();
-      if (L.dx || L.dy) {
+      if (L.float) {
+        const moved = L.float.dx || L.float.dy;
+        dropSelection(L);
+        if (!moved) {
+          history.undo.pop();
+          updateHistoryButtons();
+        }
+      } else if (L.dx || L.dy) {
         bakeOffset(L, L.dx, L.dy);
       } else {
         history.undo.pop();
@@ -751,6 +871,20 @@ function endDrag() {
     }
     case 'crop':
       if (crop && (crop.w < 2 || crop.h < 2)) cancelCrop();
+      break;
+    case 'select': {
+      const sel = drag.sel;
+      drag = null;
+      setSelection(sel && sel.w >= 2 && sel.h >= 2 ? sel : null);
+      break;
+    }
+    case 'gradient':
+      if (drag.end) {
+        pushHistory();
+        commitTemp();
+      }
+      drag = null;
+      render();
       break;
   }
   drag = null;
@@ -774,7 +908,7 @@ function commitTemp() {
   L.ctx.save();
   L.ctx.globalAlpha = stroke.alpha;
   L.ctx.globalCompositeOperation = stroke.op;
-  L.ctx.drawImage(temp, 0, 0);
+  L.ctx.drawImage(maskedTemp(), 0, 0);
   L.ctx.restore();
   stroke.preview = false;
   tctx.clearRect(0, 0, state.w, state.h);
@@ -844,15 +978,13 @@ function placeText(p) {
     onOk: ({ text }) => {
       if (!text.trim()) return;
       pushHistory();
-      const L = activeLayer();
-      const ctx = L.ctx;
-      ctx.save();
-      ctx.globalAlpha = state.opacity;
-      ctx.fillStyle = state.primary;
-      ctx.textBaseline = 'top';
-      ctx.font = `${state.fontBold ? 'bold ' : ''}${state.fontSize}px ${state.font}`;
-      text.split('\n').forEach((line, i) => ctx.fillText(line, p.x, p.y + i * state.fontSize * 1.2));
-      ctx.restore();
+      drawMasked(activeLayer(), (ctx) => {
+        ctx.globalAlpha = state.opacity;
+        ctx.fillStyle = state.primary;
+        ctx.textBaseline = 'top';
+        ctx.font = `${state.fontBold ? 'bold ' : ''}${state.fontSize}px ${state.font}`;
+        text.split('\n').forEach((line, i) => ctx.fillText(line, p.x, p.y + i * state.fontSize * 1.2));
+      });
       render();
       updateThumbs();
     },
@@ -865,6 +997,7 @@ function floodFill(L, x, y, hex, tol, opacity) {
   const w = state.w, h = state.h;
   const img = L.ctx.getImageData(0, 0, w, h);
   const d = img.data;
+  const orig = selection ? new Uint8ClampedArray(d) : null;
   const i0 = (y * w + x) * 4;
   const tr = d[i0], tg = d[i0 + 1], tb = d[i0 + 2], ta = d[i0 + 3];
   const [fr, fg, fb] = hexToRgb(hex);
@@ -910,7 +1043,180 @@ function floodFill(L, x, y, hex, tol, opacity) {
       px++;
     }
   }
+  if (orig) blendWithMask(d, orig);
   L.ctx.putImageData(img, 0, 0);
+}
+
+/* ---------------- Выделение ---------------- */
+
+let selection = null; // {shape: 'rect'|'ellipse', x, y, w, h, inverted}
+let maskCache = null; // {canvas, alpha}
+let clipboard = null; // {canvas, time}
+
+function selectionPath(ctx, sel) {
+  if (sel.shape === 'ellipse') {
+    ctx.ellipse(sel.x + sel.w / 2, sel.y + sel.h / 2, Math.max(0.5, sel.w / 2), Math.max(0.5, sel.h / 2), 0, 0, Math.PI * 2);
+  } else {
+    ctx.rect(sel.x, sel.y, sel.w, sel.h);
+  }
+  if (sel.inverted) ctx.rect(0, 0, state.w, state.h);
+}
+
+function setSelection(sel) {
+  selection = sel;
+  maskCache = null;
+  drawOverlay();
+}
+
+/** Маска выделения: непрозрачна там, где можно рисовать. */
+function selectionMask() {
+  if (!maskCache) {
+    const c = makeCanvas(state.w, state.h);
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    selectionPath(ctx, selection);
+    ctx.fill('evenodd');
+    maskCache = { canvas: c, alpha: null, ctx };
+  }
+  return maskCache.canvas;
+}
+
+function selectionAlpha() {
+  selectionMask();
+  if (!maskCache.alpha) {
+    const d = maskCache.ctx.getImageData(0, 0, state.w, state.h).data;
+    const a = new Uint8ClampedArray(state.w * state.h);
+    for (let i = 0; i < a.length; i++) a[i] = d[i * 4 + 3];
+    maskCache.alpha = a;
+  }
+  return maskCache.alpha;
+}
+
+/** Оставляет изменения пикселей только внутри выделения: out = orig + (out − orig) · маска. */
+function blendWithMask(out, orig) {
+  if (!selection) return;
+  const m = selectionAlpha();
+  for (let i = 0; i < m.length; i++) {
+    const a = m[i];
+    if (a === 255) continue;
+    const p = i * 4;
+    if (a === 0) {
+      out[p] = orig[p]; out[p + 1] = orig[p + 1]; out[p + 2] = orig[p + 2]; out[p + 3] = orig[p + 3];
+    } else {
+      const k = a / 255;
+      for (let c = 0; c < 4; c++) out[p + c] = orig[p + c] + (out[p + c] - orig[p + c]) * k;
+    }
+  }
+}
+
+/** Рисует draw(ctx) в слой, но только внутри выделения. */
+function drawMasked(L, draw) {
+  if (!selection) {
+    L.ctx.save();
+    draw(L.ctx);
+    L.ctx.restore();
+    return;
+  }
+  const work = makeCanvas(state.w, state.h);
+  const wctx = work.getContext('2d');
+  wctx.drawImage(L.canvas, 0, 0);
+  wctx.save();
+  draw(wctx);
+  wctx.restore();
+  wctx.globalCompositeOperation = 'destination-in';
+  wctx.drawImage(selectionMask(), 0, 0);
+  L.ctx.save();
+  L.ctx.globalCompositeOperation = 'destination-out';
+  L.ctx.drawImage(selectionMask(), 0, 0);
+  L.ctx.globalCompositeOperation = 'lighter';
+  L.ctx.drawImage(work, 0, 0);
+  L.ctx.restore();
+}
+
+/** Выделенные пиксели слоя на отдельном холсте (без выделения — весь слой). */
+function extractSelected(L) {
+  const c = makeCanvas(state.w, state.h);
+  const ctx = c.getContext('2d');
+  ctx.drawImage(L.canvas, 0, 0);
+  if (selection) {
+    ctx.globalCompositeOperation = 'destination-in';
+    ctx.drawImage(selectionMask(), 0, 0);
+  }
+  return c;
+}
+
+function clearSelected(L) {
+  drawMasked(L, (ctx) => ctx.clearRect(0, 0, state.w, state.h));
+}
+
+/** Отрывает выделенный фрагмент от слоя, чтобы его можно было двигать. */
+function liftSelection(L) {
+  const float = { canvas: extractSelected(L), dx: 0, dy: 0 };
+  clearSelected(L);
+  L.float = float;
+  selection.float = float;
+}
+
+function dropSelection(L) {
+  const f = L.float;
+  if (!f) return;
+  L.ctx.drawImage(f.canvas, f.dx, f.dy);
+  L.float = null;
+  delete selection.float;
+  setSelection({ ...selection, x: selection.x + f.dx, y: selection.y + f.dy });
+}
+
+function selectionBounds() {
+  if (!selection || selection.inverted) return { x: 0, y: 0, w: state.w, h: state.h };
+  const x = clamp(Math.floor(selection.x), 0, state.w), y = clamp(Math.floor(selection.y), 0, state.h);
+  const x2 = clamp(Math.ceil(selection.x + selection.w), 0, state.w);
+  const y2 = clamp(Math.ceil(selection.y + selection.h), 0, state.h);
+  return { x, y, w: x2 - x, h: y2 - y };
+}
+
+function selectionFromDrag(a, b, constrain) {
+  let dx = b.x - a.x, dy = b.y - a.y;
+  if (constrain) {
+    const sz = Math.max(Math.abs(dx), Math.abs(dy));
+    dx = Math.sign(dx || 1) * sz;
+    dy = Math.sign(dy || 1) * sz;
+  }
+  return {
+    shape: state.selShape,
+    x: Math.round(Math.min(a.x, a.x + dx)), y: Math.round(Math.min(a.y, a.y + dy)),
+    w: Math.round(Math.abs(dx)), h: Math.round(Math.abs(dy)), inverted: false,
+  };
+}
+
+function pointInSelection(p) {
+  if (!selection) return false;
+  const x = Math.floor(p.x), y = Math.floor(p.y);
+  if (x < 0 || y < 0 || x >= state.w || y >= state.h) return false;
+  return selectionAlpha()[y * state.w + x] > 127;
+}
+
+/* ---------------- Градиент ---------------- */
+
+function drawGradient(ctx, a, b, constrain) {
+  let dx = b.x - a.x, dy = b.y - a.y;
+  if (constrain) {
+    const ang = Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) * (Math.PI / 4);
+    const len = Math.hypot(dx, dy);
+    dx = Math.cos(ang) * len;
+    dy = Math.sin(ang) * len;
+  }
+  const end = { x: a.x + dx, y: a.y + dy };
+  const g = state.gradType === 'radial'
+    ? ctx.createRadialGradient(a.x, a.y, 0, a.x, a.y, Math.max(1, Math.hypot(dx, dy)))
+    : ctx.createLinearGradient(a.x, a.y, end.x, end.y);
+  const [r, gg, bb] = hexToRgb(state.primary);
+  g.addColorStop(0, state.primary);
+  g.addColorStop(1, state.gradMode === 'fade' ? `rgba(${r},${gg},${bb},0)` : state.secondary);
+  ctx.clearRect(0, 0, state.w, state.h);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, state.w, state.h);
+  return end;
 }
 
 /* ---------------- Кадрирование ---------------- */
@@ -939,6 +1245,8 @@ $('#cropCancel').onclick = cancelCrop;
 /** Пересоздаёт все слои под новый размер; draw рисует старый слой в новый контекст. */
 function transformDocument(w, h, draw) {
   const oldLayers = state.layers;
+  selection = null;
+  maskCache = null;
   state.w = w;
   state.h = h;
   resizeAux();
@@ -971,7 +1279,9 @@ function pixelFilter(fn) {
   const L = activeLayer();
   const img = L.ctx.getImageData(0, 0, state.w, state.h);
   const d = img.data;
+  const orig = selection ? new Uint8ClampedArray(d) : null;
   for (let i = 0; i < d.length; i += 4) fn(d, i);
+  if (orig) blendWithMask(d, orig);
   L.ctx.putImageData(img, 0, 0);
   render();
   updateThumbs();
@@ -1170,6 +1480,7 @@ function openAdjustment(key) {
     frame = requestAnimationFrame(() => {
       const out = new ImageData(w, h);
       def.apply(original.data, out.data, w, h, values);
+      blendWithMask(out.data, original.data);
       L.ctx.putImageData(out, 0, 0);
       render();
     });
@@ -1182,6 +1493,7 @@ function openAdjustment(key) {
       cancelAnimationFrame(frame);
       const out = new ImageData(w, h);
       def.apply(original.data, out.data, w, h, values);
+      blendWithMask(out.data, original.data);
       L.ctx.putImageData(out, 0, 0);
       render();
       updateThumbs();
@@ -1350,20 +1662,61 @@ const actions = {
   undo, redo,
   clearLayer() {
     pushHistory();
-    activeLayer().ctx.clearRect(0, 0, state.w, state.h);
+    clearSelected(activeLayer());
     render();
     updateThumbs();
   },
   fillLayer() {
     pushHistory();
-    const ctx = activeLayer().ctx;
-    ctx.save();
-    ctx.globalAlpha = state.opacity;
-    ctx.fillStyle = state.primary;
-    ctx.fillRect(0, 0, state.w, state.h);
-    ctx.restore();
+    drawMasked(activeLayer(), (ctx) => {
+      ctx.globalAlpha = state.opacity;
+      ctx.fillStyle = state.primary;
+      ctx.fillRect(0, 0, state.w, state.h);
+    });
     render();
     updateThumbs();
+  },
+  selectAll() {
+    setSelection({ shape: 'rect', x: 0, y: 0, w: state.w, h: state.h, inverted: false });
+  },
+  deselect() {
+    setSelection(null);
+  },
+  invertSelection() {
+    if (!selection) { status('Сначала выделите область.'); return; }
+    setSelection({ ...selection, inverted: !selection.inverted });
+  },
+  copy() {
+    clipboard = { canvas: extractSelected(activeLayer()), w: state.w, h: state.h, time: Date.now() };
+    status(selection ? '📋 Выделение скопировано' : '📋 Слой скопирован целиком');
+  },
+  cut() {
+    if (!ensureEditable()) return;
+    clipboard = { canvas: extractSelected(activeLayer()), w: state.w, h: state.h, time: Date.now() };
+    pushHistory();
+    clearSelected(activeLayer());
+    render();
+    updateThumbs();
+    status('✂ Вырезано — Ctrl+V вставит новым слоем');
+  },
+  pasteInternal() {
+    if (!clipboard) { status('Буфер пуст: сначала скопируйте выделение.'); return; }
+    pushHistory();
+    const L = createLayer('Вставка');
+    L.ctx.drawImage(clipboard.canvas, 0, 0);
+    state.layers.splice(state.active + 1, 0, L);
+    state.active++;
+    renderLayers();
+    render();
+    setTool('move');
+    status('Вставлено новым слоем — двигайте инструментом «Перемещение»');
+  },
+  cropToSelection() {
+    if (!selection) { status('Сначала выделите область.'); return; }
+    const b = selectionBounds();
+    if (b.w < 1 || b.h < 1) return;
+    crop = b;
+    applyCrop();
   },
   imageSize() {
     const ratio = state.w / state.h;
@@ -1561,7 +1914,10 @@ const actions = {
       ['T / L', 'Текст / Линия'], ['U / O', 'Прямоугольник / Эллипс'], ['H / Пробел', 'Рука'], ['Z', 'Масштаб'],
       ['[ / ]', 'Размер кисти −/+'], ['1…0', 'Непрозрачность 10…100%'], ['X / D', 'Поменять / сбросить цвета'],
       ['Shift', 'Ровные линии и пропорциональные фигуры'], ['Ctrl+Z / Ctrl+Shift+Z', 'Отменить / Повторить'],
-      ['Ctrl+S', 'Сохранить PNG'], ['Ctrl+V', 'Вставить картинку как слой'], ['Колесо мыши', 'Масштаб'],
+      ['M / R', 'Выделение / Градиент'], ['Ctrl+A / Ctrl+D', 'Выделить всё / Снять выделение'],
+      ['Ctrl+Shift+I', 'Инвертировать выделение'], ['Ctrl+C / Ctrl+X', 'Копировать / Вырезать выделение'],
+      ['Del', 'Очистить выделение (или слой)'],
+      ['Ctrl+S', 'Сохранить PNG'], ['Ctrl+V', 'Вставить новым слоем'], ['Колесо мыши', 'Масштаб'],
     ];
     openModal({
       title: 'Горячие клавиши',
@@ -1677,13 +2033,17 @@ viewport.addEventListener('drop', (e) => {
 });
 
 window.addEventListener('paste', (e) => {
-  if (!$('#modal').hidden) return;
+  if (!$('#modal').hidden || e.target.matches('input, textarea')) return;
   for (const item of e.clipboardData.items) {
     if (item.type.startsWith('image/')) {
       placeFile(item.getAsFile());
       e.preventDefault();
       return;
     }
+  }
+  if (clipboard) {
+    e.preventDefault();
+    runAction('pasteInternal');
   }
 });
 
@@ -1705,7 +2065,8 @@ window.addEventListener('keydown', (e) => {
   if (mod) {
     const map = {
       z: e.shiftKey ? 'redo' : 'undo', y: 'redo', s: 'savePng', o: 'open', j: 'layerDup',
-      e: 'mergeDown', i: 'invert', '0': 'fit', '1': 'actual', '=': 'zoomIn', '+': 'zoomIn', '-': 'zoomOut',
+      e: 'mergeDown', i: e.shiftKey ? 'invertSelection' : 'invert', a: 'selectAll', d: 'deselect',
+      c: 'copy', x: 'cut', '0': 'fit', '1': 'actual', '=': 'zoomIn', '+': 'zoomIn', '-': 'zoomOut',
     };
     if (k === 'n' && e.shiftKey) { e.preventDefault(); runAction('layerNew'); return; }
     if (k === 'n' && e.altKey) { e.preventDefault(); runAction('new'); return; }
@@ -1719,7 +2080,7 @@ window.addEventListener('keydown', (e) => {
     return;
   }
   if (e.key === 'Enter' && crop) { applyCrop(); return; }
-  if (e.key === 'Escape') { cancelCrop(); closeMenus(); return; }
+  if (e.key === 'Escape') { cancelCrop(); closeMenus(); if (!drag) setSelection(null); return; }
   if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); runAction('clearLayer'); return; }
   if (e.key === '[') { setSize(clamp(state.size - Math.max(1, Math.round(state.size * 0.15)), 1, 200)); return; }
   if (e.key === ']') { setSize(clamp(state.size + Math.max(1, Math.round(state.size * 0.15)), 1, 200)); return; }
@@ -1736,7 +2097,15 @@ window.addEventListener('keydown', (e) => {
     const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
     const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0;
     pushHistory();
-    bakeOffset(activeLayer(), dx, dy);
+    const L = activeLayer();
+    if (selection) {
+      liftSelection(L);
+      L.float.dx = dx;
+      L.float.dy = dy;
+      dropSelection(L);
+    } else {
+      bakeOffset(L, dx, dy);
+    }
     render();
     updateThumbs();
     return;
