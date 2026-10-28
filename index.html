@@ -3,9 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0d2340">
+  <link rel="apple-touch-icon" href="icon-192.png">
   <title>PhipiShip Флот — Гавань</title>
-  <meta name="description" content="Бесплатный набор творческих программ в браузере: графика, анимация и вектор.">
+  <meta name="description" content="Бесплатный набор творческих программ в браузере: фото, анимация, вектор, видео, звук и вёрстка. Работает без интернета.">
   <link rel="icon" href="icon-fleet.svg" type="image/svg+xml">
+  <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="hub.css">
   <script src="suite.js"></script>
@@ -47,6 +50,31 @@
       <div class="recent" id="recent"></div>
     </section>
 
+    <section id="offline">
+      <div class="section-head">
+        <h2>Работа без интернета</h2>
+        <span class="muted" id="offlineStatus">проверяю…</span>
+      </div>
+      <div class="offline-grid">
+        <article class="offline-card">
+          <div class="oc-icon">📲</div>
+          <h3>Установить как приложение</h3>
+          <p>Флот появится на рабочем столе или экране телефона, будет открываться в своём окне и работать без интернета.
+            Файлы флота можно будет открывать двойным кликом.</p>
+          <button class="primary" id="installBtn">Установить</button>
+          <p class="muted small" id="installHint"></p>
+        </article>
+        <article class="offline-card">
+          <div class="oc-icon">📦</div>
+          <h3>Скачать архив ZIP</h3>
+          <p>Все программы одним архивом — можно хранить на флешке и запускать на компьютере без интернета:
+            распакуйте и откройте <b>index.html</b>.</p>
+          <button id="zipBtn">Скачать ZIP</button>
+          <p class="muted small" id="zipInfo"></p>
+        </article>
+      </div>
+    </section>
+
     <section>
       <h2>Форматы файлов</h2>
       <div class="table-wrap">
@@ -72,6 +100,7 @@
   <div class="toast" id="toast"></div>
   <input type="file" id="fileAny" hidden>
 
+  <script src="files.js"></script>
   <script src="hub.js"></script>
 </body>
 </html>

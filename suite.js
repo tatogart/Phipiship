@@ -23,8 +23,30 @@ const Fleet = (() => {
       color: '#14b8a6', what: 'Векторная графика',
       desc: 'Логотипы и иллюстрации из фигур и линий: масштаб без потери качества, экспорт в SVG.',
     },
+    {
+      id: 'svet', name: 'Свет', short: 'Свет', ext: 'svet', page: 'svet.html', icon: 'icon-svet.svg',
+      color: '#f59e0b', what: 'Коррекция фотографий',
+      desc: 'Экспозиция, цвет, тени и свет без порчи оригинала, пресеты и сравнение «до/после».',
+    },
+    {
+      id: 'kadr', name: 'Кадр', short: 'Кадр', ext: 'kadr', page: 'kadr.html', icon: 'icon-kadr.svg',
+      color: '#8b5cf6', what: 'Видеомонтаж',
+      desc: 'Склейка видео и картинок на таймлайне, обрезка, титры, переходы и экспорт ролика.',
+    },
+    {
+      id: 'volna', name: 'Волна', short: 'Волна', ext: 'volna', page: 'volna.html', icon: 'icon-volna.svg',
+      color: '#3b82f6', what: 'Звук и запись',
+      desc: 'Запись с микрофона, обрезка, затухания, эхо, нормализация и экспорт в WAV.',
+    },
+    {
+      id: 'verstka', name: 'Вёрстка', short: 'Вёрстка', ext: 'verstka', page: 'verstka.html', icon: 'icon-verstka.svg',
+      color: '#e11d48', what: 'Макеты и печать',
+      desc: 'Открытки, плакаты и многостраничные документы: текст, фото, фигуры, печать и PDF.',
+    },
   ];
   const IMAGE_EXT = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'avif', 'svg', 'ico'];
+  const AUDIO_EXT = ['mp3', 'wav', 'ogg', 'oga', 'm4a', 'aac', 'flac', 'opus'];
+  const VIDEO_EXT = ['mp4', 'mov', 'm4v', 'webm', 'ogv', 'mkv'];
   const RECENT_LIMIT = 12;
 
   const byId = (id) => APPS.find((a) => a.id === id);
@@ -37,6 +59,8 @@ const Fleet = (() => {
     const app = APPS.find((a) => a.ext === ext);
     if (app) return app;
     if ((type && type.startsWith('image/')) || IMAGE_EXT.includes(ext)) return byId('photo');
+    if ((type && type.startsWith('audio/')) || AUDIO_EXT.includes(ext)) return byId('volna');
+    if ((type && type.startsWith('video/')) || VIDEO_EXT.includes(ext)) return byId('kadr');
     return null;
   }
 
@@ -150,7 +174,7 @@ const Fleet = (() => {
   }
 
   /** Строка accept для поля выбора файла: все форматы флота и картинки. */
-  const ACCEPT_ALL = ['image/*', ...APPS.map((a) => '.' + a.ext)].join(',');
+  const ACCEPT_ALL = ['image/*', 'audio/*', 'video/*', ...APPS.map((a) => '.' + a.ext)].join(',');
 
   /* ---------- Темы ---------- */
 
@@ -200,6 +224,13 @@ const Fleet = (() => {
     document.addEventListener('click', (e) => {
       if (!pop.contains(e.target)) pop.classList.remove('show');
     });
+  }
+
+  /* ---------- Работа без интернета ---------- */
+
+  // Service worker сохраняет все программы в кэш браузера (только по http/https).
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
   }
 
   return {

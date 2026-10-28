@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0d2340">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <title>Вёрстка — PhipiShip Флот</title>
+  <link rel="icon" href="icon-verstka.svg" type="image/svg+xml">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="style.css">
+  <script src="suite.js"></script>
+</head>
+<body class="verstka">
+  <header class="menubar">
+    <div class="brand">
+      <img src="icon-verstka.svg" alt="" width="22" height="22">
+      <span>Вёрстка</span>
+    </div>
+    <nav class="menus">
+      <div class="menu">
+        <button class="menu-title">Файл</button>
+        <div class="dropdown">
+          <button data-action="new">Новый документ или шаблон…</button>
+          <button data-action="open">Открыть… <kbd>Ctrl+O</kbd></button>
+          <hr>
+          <button data-action="save">Сохранить .verstka <kbd>Ctrl+S</kbd></button>
+          <hr>
+          <button data-action="print">Печать / сохранить PDF… <kbd>Ctrl+P</kbd></button>
+          <button data-action="exportPng">Экспорт страницы PNG…</button>
+          <button data-action="toPhoto">Открыть страницу в PhipiShip Фото</button>
+          <hr>
+          <button data-action="harbor">⚓ Гавань — все программы</button>
+        </div>
+      </div>
+      <div class="menu">
+        <button class="menu-title">Правка</button>
+        <div class="dropdown">
+          <button data-action="undo">Отменить <kbd>Ctrl+Z</kbd></button>
+          <button data-action="redo">Повторить <kbd>Ctrl+Shift+Z</kbd></button>
+          <hr>
+          <button data-action="duplicate">Дублировать <kbd>Ctrl+D</kbd></button>
+          <button data-action="remove">Удалить <kbd>Del</kbd></button>
+          <hr>
+          <button data-action="toFront">На передний план <kbd>Shift+]</kbd></button>
+          <button data-action="toBack">На задний план <kbd>Shift+[</kbd></button>
+        </div>
+      </div>
+      <div class="menu">
+        <button class="menu-title">Страница</button>
+        <div class="dropdown">
+          <button data-action="addPage">Новая страница</button>
+          <button data-action="dupPage">Дублировать страницу</button>
+          <button data-action="delPage">Удалить страницу</button>
+          <hr>
+          <button data-action="pageUp">Переместить выше</button>
+          <button data-action="pageDown">Переместить ниже</button>
+          <hr>
+          <button data-action="docSize">Размер страниц…</button>
+        </div>
+      </div>
+      <div class="menu">
+        <button class="menu-title">Вид</button>
+        <div class="dropdown">
+          <button data-action="zoomIn">Приблизить <kbd>Ctrl++</kbd></button>
+          <button data-action="zoomOut">Отдалить <kbd>Ctrl+−</kbd></button>
+          <button data-action="fit">По ширине окна <kbd>Ctrl+0</kbd></button>
+          <hr>
+          <button data-action="toggleGuides">Поля и направляющие вкл/выкл</button>
+        </div>
+      </div>
+      <div class="menu">
+        <button class="menu-title">Справка</button>
+        <div class="dropdown">
+          <button data-action="shortcuts">Горячие клавиши</button>
+          <button data-action="about">О Вёрстке</button>
+        </div>
+      </div>
+    </nav>
+    <div class="themes" title="Тема оформления">
+      <button data-theme-pick="ocean" title="Ночное море"></button>
+      <button data-theme-pick="sunset" title="Закат"></button>
+      <button data-theme-pick="lagoon" title="Лагуна"></button>
+      <button data-theme-pick="sail" title="Парус (светлая)"></button>
+    </div>
+    <div class="history-btns">
+      <button id="panelToggle" class="panel-toggle" title="Панель">☰</button>
+      <button id="undoBtn" data-action="undo" title="Отменить (Ctrl+Z)">↶</button>
+      <button id="redoBtn" data-action="redo" title="Повторить (Ctrl+Shift+Z)">↷</button>
+    </div>
+  </header>
+
+  <div class="optionsbar">
+    <span class="opt-tool" id="optToolName">Выбор</span>
+    <span class="hint" id="toolHint"></span>
+  </div>
+
+  <main class="workspace">
+    <aside class="toolbar">
+      <button data-tool="select" title="Выбор (V)"><svg viewBox="0 0 24 24"><path d="M5 3l14 8-6 1.5L10 19z"/></svg></button>
+      <span class="sep"></span>
+      <button data-tool="text" title="Текстовый блок (T)"><svg viewBox="0 0 24 24"><path d="M5 5h14M12 5v14M9 19h6"/></svg></button>
+      <button data-tool="image" title="Картинка (I)"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 8"/></svg></button>
+      <button data-tool="rect" title="Прямоугольник (R)"><svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12" rx="2"/></svg></button>
+      <button data-tool="ellipse" title="Эллипс (O)"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="9" ry="7"/></svg></button>
+    </aside>
+
+    <section class="viewport pages-area" id="viewport">
+      <div class="pages" id="pages"></div>
+    </section>
+
+    <aside class="panel">
+      <section class="panel-block">
+        <h3 id="propsTitle">Страница</h3>
+        <div class="props" id="props"></div>
+      </section>
+      <section class="panel-block layers-block">
+        <h3>Страницы</h3>
+        <ul class="objects" id="pageList"></ul>
+        <div class="layer-actions">
+          <button data-action="addPage" title="Новая страница">＋</button>
+          <button data-action="dupPage" title="Дублировать">⧉</button>
+          <button data-action="pageUp" title="Выше">▲</button>
+          <button data-action="pageDown" title="Ниже">▼</button>
+          <button data-action="delPage" title="Удалить">🗑</button>
+        </div>
+      </section>
+    </aside>
+  </main>
+
+  <footer class="statusbar">
+    <span id="statusCoords">—</span>
+    <span id="statusSize"></span>
+    <span class="zoom-ctl">
+      <button data-action="zoomOut" title="Отдалить">−</button>
+      <span id="zoomLabel">100%</span>
+      <button data-action="zoomIn" title="Приблизить">+</button>
+    </span>
+    <span id="statusMsg" class="msg"></span>
+  </footer>
+
+  <div class="modal" id="modal" hidden>
+    <form class="modal-box" id="modalForm">
+      <h2 id="modalTitle"></h2>
+      <div id="modalBody" class="modal-body"></div>
+      <div class="modal-buttons">
+        <button type="button" id="modalCancel">Отмена</button>
+        <button type="submit" id="modalOk" class="primary">OK</button>
+      </div>
+    </form>
+  </div>
+
+  <div id="printArea" aria-hidden="true"></div>
+  <style id="pageStyle"></style>
+
+  <input type="file" id="fileOpen" hidden>
+  <input type="file" id="fileImage" accept="image/*" hidden>
+
+  <script src="ui.js"></script>
+  <script src="verstka.js"></script>
+</body>
+</html>

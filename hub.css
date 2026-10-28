@@ -252,3 +252,20 @@ body.dragover .drop-veil { display: flex; }
   transition: opacity .25s, transform .25s;
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* ---------- работа без интернета ---------- */
+.offline-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.offline-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px;
+  border-radius: 20px;
+  background: var(--glass);
+  border: 1px solid var(--border);
+}
+.offline-card h3 { margin: 0; font-size: 17px; font-weight: 900; }
+.offline-card p { margin: 0; color: var(--muted); line-height: 1.5; }
+.offline-card p.small { font-size: 12px; }
+.offline-card button { align-self: flex-start; padding: 9px 18px; border-radius: 12px; font-weight: 800; }
+.oc-icon { font-size: 32px; }

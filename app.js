@@ -2158,6 +2158,13 @@ window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') closeModal(false);
     return;
   }
+  // Ctrl+S работает даже в полях ввода.
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's' && !e.shiftKey) {
+    e.preventDefault();
+    if (e.target.isContentEditable || e.target.matches('input, textarea')) e.target.blur();
+    runAction('saveProject');
+    return;
+  }
   if (e.target.matches('input, select, textarea')) return;
   const mod = e.ctrlKey || e.metaKey;
   const k = e.key.toLowerCase();

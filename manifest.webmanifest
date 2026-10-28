@@ -1,0 +1,37 @@
+{
+  "name": "PhipiShip Флот",
+  "short_name": "PhipiShip",
+  "description": "Набор творческих программ: фото, анимация, вектор, видео, звук и вёрстка. Работает без интернета.",
+  "lang": "ru",
+  "start_url": "index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#07111f",
+  "theme_color": "#0d2340",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon-fleet.svg", "sizes": "any", "type": "image/svg+xml" }
+  ],
+  "shortcuts": [
+    { "name": "PhipiShip Фото", "url": "photo.html", "icons": [{ "src": "logo.svg", "sizes": "any" }] },
+    { "name": "Анимка", "url": "animka.html", "icons": [{ "src": "icon-animka.svg", "sizes": "any" }] },
+    { "name": "Контур", "url": "kontur.html", "icons": [{ "src": "icon-kontur.svg", "sizes": "any" }] },
+    { "name": "Кадр", "url": "kadr.html", "icons": [{ "src": "icon-kadr.svg", "sizes": "any" }] }
+  ],
+  "file_handlers": [
+    {
+      "action": "index.html",
+      "accept": {
+        "application/x-photik": [".photik"],
+        "application/x-animka": [".animka"],
+        "application/x-kontur": [".kontur"],
+        "application/x-svet": [".svet"],
+        "application/x-kadr": [".kadr"],
+        "application/x-volna": [".volna"],
+        "application/x-verstka": [".verstka"]
+      }
+    }
+  ]
+}

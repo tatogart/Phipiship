@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0d2340">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <title>Волна — PhipiShip Флот</title>
+  <link rel="icon" href="icon-volna.svg" type="image/svg+xml">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="style.css">
+  <script src="suite.js"></script>
+</head>
+<body class="volna">
+  <header class="menubar">
+    <div class="brand">
+      <img src="icon-volna.svg" alt="" width="22" height="22">
+      <span>Волна</span>
+    </div>
+    <nav class="menus">
+      <div class="menu">
+        <button class="menu-title">Файл</button>
+        <div class="dropdown">
+          <button data-action="new">Новый проект</button>
+          <button data-action="open">Открыть звук или .volna… <kbd>Ctrl+O</kbd></button>
+          <button data-action="importAudio">Вставить звук из файла…</button>
+          <hr>
+          <button data-action="save">Сохранить .volna <kbd>Ctrl+S</kbd></button>
+          <button data-action="exportWav">Экспорт WAV</button>
+          <button data-action="exportSel">Экспорт выделения WAV</button>
+          <hr>
+          <button data-action="harbor">⚓ Гавань — все программы</button>
+        </div>
+      </div>
+      <div class="menu">
+        <button class="menu-title">Правка</button>
+        <div class="dropdown">
+          <button data-action="undo">Отменить <kbd>Ctrl+Z</kbd></button>
+          <button data-action="redo">Повторить <kbd>Ctrl+Shift+Z</kbd></button>
+          <hr>
+          <button data-action="cut">Вырезать <kbd>Ctrl+X</kbd></button>
+          <button data-action="copy">Копировать <kbd>Ctrl+C</kbd></button>
+          <button data-action="paste">Вставить <kbd>Ctrl+V</kbd></button>
+          <button data-action="del">Удалить выделение <kbd>Del</kbd></button>
+          <button data-action="crop">Оставить только выделение</button>
+          <hr>
+          <button data-action="selectAll">Выделить всё <kbd>Ctrl+A</kbd></button>
+          <button data-action="deselect">Снять выделение <kbd>Esc</kbd></button>
+        </div>
+      </div>
+      <div class="menu">
+        <button class="menu-title">Эффекты</button>
+        <div class="dropdown">
+          <button data-action="fadeIn">Плавное появление</button>
+          <button data-action="fadeOut">Плавное затухание</button>
+          <button data-action="gain">Громкость…</button>
+          <button data-action="normalize">Нормализовать</button>
+          <hr>
+          <button data-action="echo">Эхо…</button>
+          <button data-action="reverse">Задом наперёд</button>
+          <button data-action="silence">Заглушить выделение</button>
+          <button data-action="insertSilence">Вставить тишину…</button>
+        </div>
+      </div>
+      <div class="menu">
+        <button class="menu-title">Вид</button>
+        <div class="dropdown">
+          <button data-action="zoomIn">Приблизить <kbd>+</kbd></button>
+          <button data-action="zoomOut">Отдалить <kbd>−</kbd></button>
+          <button data-action="fit">Всю запись <kbd>Ctrl+0</kbd></button>
+          <button data-action="zoomSel">К выделению</button>
+        </div>
+      </div>
+      <div class="menu">
+        <button class="menu-title">Справка</button>
+        <div class="dropdown">
+          <button data-action="shortcuts">Горячие клавиши</button>
+          <button data-action="about">О Волне</button>
+        </div>
+      </div>
+    </nav>
+    <div class="themes" title="Тема оформления">
+      <button data-theme-pick="ocean" title="Ночное море"></button>
+      <button data-theme-pick="sunset" title="Закат"></button>
+      <button data-theme-pick="lagoon" title="Лагуна"></button>
+      <button data-theme-pick="sail" title="Парус (светлая)"></button>
+    </div>
+    <div class="history-btns">
+      <button id="panelToggle" class="panel-toggle" title="Панель">☰</button>
+      <button id="undoBtn" data-action="undo" title="Отменить (Ctrl+Z)">↶</button>
+      <button id="redoBtn" data-action="redo" title="Повторить (Ctrl+Shift+Z)">↷</button>
+    </div>
+  </header>
+
+  <div class="optionsbar transport">
+    <button class="tbtn" data-action="toStart" title="В начало (Home)">⏮</button>
+    <button class="tbtn play" id="playBtn" data-action="play" title="Играть / пауза (Пробел)">▶</button>
+    <button class="tbtn" data-action="stop" title="Стоп">■</button>
+    <button class="tbtn rec" id="recBtn" data-action="record" title="Запись с микрофона (R)">●</button>
+    <label title="Повторять выделение (L)"><input type="checkbox" id="loop"> Повтор</label>
+    <span class="clock" id="clock">0:00.000</span>
+    <span class="hint" id="selInfo">Выделения нет</span>
+  </div>
+
+  <main class="workspace">
+    <section class="viewport wave-area" id="viewport">
+      <canvas id="wave"></canvas>
+      <div class="wave-empty" id="waveEmpty">
+        <img src="icon-volna.svg" alt="" width="64" height="64">
+        <p>Откройте звуковой файл, перетащите его сюда<br>или нажмите <b>●</b>, чтобы записать с микрофона.</p>
+      </div>
+      <input type="range" id="scroll" class="wave-scroll" min="0" max="1000" value="0" title="Прокрутка">
+    </section>
+
+    <aside class="panel">
+      <section class="panel-block">
+        <h3>Запись</h3>
+        <div class="row"><span>Длительность</span><span class="big-info" id="durInfo">0:00</span></div>
+        <div class="row"><span>Частота</span><span id="rateInfo">—</span></div>
+        <div class="row"><span>Каналы</span><span id="chInfo">—</span></div>
+        <div class="row"><span>Пик</span><span id="peakInfo">—</span></div>
+        <div class="meter"><div id="meterBar"></div></div>
+      </section>
+      <section class="panel-block">
+        <h3>Быстрые эффекты</h3>
+        <div class="fx-grid">
+          <button data-action="fadeIn">↗ Появление</button>
+          <button data-action="fadeOut">↘ Затухание</button>
+          <button data-action="normalize">⇕ Нормализ.</button>
+          <button data-action="gain">🔊 Громкость</button>
+          <button data-action="echo">〰 Эхо</button>
+          <button data-action="reverse">⇄ Реверс</button>
+          <button data-action="silence">∅ Тишина</button>
+          <button data-action="crop">✂ Обрезать</button>
+        </div>
+        <p class="hint-small">Эффекты применяются к выделению, а если его нет — ко всей записи.</p>
+      </section>
+    </aside>
+  </main>
+
+  <footer class="statusbar">
+    <span id="statusCoords">—</span>
+    <span class="zoom-ctl">
+      <button data-action="zoomOut" title="Отдалить">−</button>
+      <span id="zoomLabel">весь трек</span>
+      <button data-action="zoomIn" title="Приблизить">+</button>
+    </span>
+    <span id="statusMsg" class="msg"></span>
+  </footer>
+
+  <div class="modal" id="modal" hidden>
+    <form class="modal-box" id="modalForm">
+      <h2 id="modalTitle"></h2>
+      <div id="modalBody" class="modal-body"></div>
+      <div class="modal-buttons">
+        <button type="button" id="modalCancel">Отмена</button>
+        <button type="submit" id="modalOk" class="primary">OK</button>
+      </div>
+    </form>
+  </div>
+
+  <input type="file" id="fileOpen" hidden>
+  <input type="file" id="fileImport" accept="audio/*,video/*" hidden>
+
+  <script src="ui.js"></script>
+  <script src="volna.js"></script>
+</body>
+</html>

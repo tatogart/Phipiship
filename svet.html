@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0d2340">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <title>Свет — PhipiShip Флот</title>
+  <link rel="icon" href="icon-svet.svg" type="image/svg+xml">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="style.css">
+  <script src="suite.js"></script>
+</head>
+<body class="animka svet">
+  <header class="menubar">
+    <div class="brand">
+      <img src="icon-svet.svg" alt="" width="22" height="22">
+      <span>Свет</span>
+    </div>
+    <nav class="menus">
+      <div class="menu">
+        <button class="menu-title">Файл</button>
+        <div class="dropdown">
+          <button data-action="open">Добавить фото или открыть .svet… <kbd>Ctrl+O</kbd></button>
+          <hr>
+          <button data-action="save">Сохранить .svet <kbd>Ctrl+S</kbd></button>
+          <hr>
+          <button data-action="exportJpg">Экспорт JPG… <kbd>Ctrl+E</kbd></button>
+          <button data-action="exportPng">Экспорт PNG</button>
+          <button data-action="exportAll">Экспорт всех фото в JPG</button>
+          <button data-action="toPhoto">Открыть в PhipiShip Фото</button>
+          <hr>
+          <button data-action="harbor">⚓ Гавань — все программы</button>
+        </div>
+      </div>
+      <div class="menu">
+        <button class="menu-title">Правка</button>
+        <div class="dropdown">
+          <button data-action="undo">Отменить <kbd>Ctrl+Z</kbd></button>
+          <button data-action="redo">Повторить <kbd>Ctrl+Shift+Z</kbd></button>
+          <hr>
+          <button data-action="reset">Сбросить настройки фото</button>
+          <button data-action="copySettings">Копировать настройки <kbd>Ctrl+Shift+C</kbd></button>
+          <button data-action="pasteSettings">Вставить настройки <kbd>Ctrl+Shift+V</kbd></button>
+          <button data-action="applyAll">Применить ко всем фото</button>
+          <hr>
+          <button data-action="removePhoto">Убрать фото из ленты</button>
+        </div>
+      </div>
+      <div class="menu">
+        <button class="menu-title">Фото</button>
+        <div class="dropdown">
+          <button data-action="rotL">Повернуть влево <kbd>[</kbd></button>
+          <button data-action="rotR">Повернуть вправо <kbd>]</kbd></button>
+          <button data-action="flip">Отразить</button>
+          <hr>
+          <button data-action="compare">Сравнить «до / после» <kbd>\</kbd></button>
+          <button data-action="savePreset">Сохранить как мой пресет…</button>
+        </div>
+      </div>
+      <div class="menu">
+        <button class="menu-title">Вид</button>
+        <div class="dropdown">
+          <button data-action="zoomIn">Приблизить <kbd>Ctrl++</kbd></button>
+          <button data-action="zoomOut">Отдалить <kbd>Ctrl+−</kbd></button>
+          <button data-action="fit">По размеру окна <kbd>Ctrl+0</kbd></button>
+          <hr>
+          <button data-action="prevPhoto">Предыдущее фото <kbd>←</kbd></button>
+          <button data-action="nextPhoto">Следующее фото <kbd>→</kbd></button>
+        </div>
+      </div>
+      <div class="menu">
+        <button class="menu-title">Справка</button>
+        <div class="dropdown">
+          <button data-action="shortcuts">Горячие клавиши</button>
+          <button data-action="about">О Свете</button>
+        </div>
+      </div>
+    </nav>
+    <div class="themes" title="Тема оформления">
+      <button data-theme-pick="ocean" title="Ночное море"></button>
+      <button data-theme-pick="sunset" title="Закат"></button>
+      <button data-theme-pick="lagoon" title="Лагуна"></button>
+      <button data-theme-pick="sail" title="Парус (светлая)"></button>
+    </div>
+    <div class="history-btns">
+      <button id="panelToggle" class="panel-toggle" title="Панель">☰</button>
+      <button id="undoBtn" data-action="undo" title="Отменить (Ctrl+Z)">↶</button>
+      <button id="redoBtn" data-action="redo" title="Повторить (Ctrl+Shift+Z)">↷</button>
+    </div>
+  </header>
+
+  <div class="optionsbar">
+    <span class="opt-tool" id="photoName">Нет фото</span>
+    <button data-action="rotL" title="Повернуть влево ([)">⟲</button>
+    <button data-action="rotR" title="Повернуть вправо (])">⟳</button>
+    <button data-action="flip" title="Отразить">⇋</button>
+    <button id="compareBtn" data-action="compare" title="До / после (\)">◐ До / после</button>
+    <button data-action="reset" title="Сбросить">↺ Сброс</button>
+    <span class="hint" id="photoInfo"></span>
+  </div>
+
+  <main class="workspace">
+    <aside class="toolbar presets-bar" id="presets" title="Пресеты"></aside>
+
+    <section class="viewport" id="viewport">
+      <div class="stage" id="stage">
+        <canvas id="view"></canvas>
+      </div>
+      <div class="wave-empty" id="empty">
+        <img src="icon-svet.svg" alt="" width="64" height="64">
+        <p>Добавьте фотографии: «Файл → Добавить фото»<br>или перетащите их сюда. Можно сразу несколько.</p>
+        <button class="primary" data-action="open">Добавить фото…</button>
+      </div>
+      <div class="drop-hint">Отпустите — фото добавятся в ленту</div>
+    </section>
+
+    <aside class="panel">
+      <section class="panel-block">
+        <h3>Гистограмма</h3>
+        <canvas id="histo" class="histo" width="256" height="90"></canvas>
+      </section>
+      <div class="panel-scroll" id="sliders"></div>
+    </aside>
+  </main>
+
+  <section class="timeline filmstrip">
+    <div class="frames" id="frames"></div>
+  </section>
+
+  <footer class="statusbar">
+    <span id="statusCoords">—</span>
+    <span id="statusSize"></span>
+    <span class="zoom-ctl">
+      <button data-action="zoomOut" title="Отдалить">−</button>
+      <span id="zoomLabel">100%</span>
+      <button data-action="zoomIn" title="Приблизить">+</button>
+    </span>
+    <span id="statusMsg" class="msg"></span>
+  </footer>
+
+  <div class="modal" id="modal" hidden>
+    <form class="modal-box" id="modalForm">
+      <h2 id="modalTitle"></h2>
+      <div id="modalBody" class="modal-body"></div>
+      <div class="modal-buttons">
+        <button type="button" id="modalCancel">Отмена</button>
+        <button type="submit" id="modalOk" class="primary">OK</button>
+      </div>
+    </form>
+  </div>
+
+  <input type="file" id="fileOpen" multiple hidden>
+
+  <script src="ui.js"></script>
+  <script src="svet.js"></script>
+</body>
+</html>
